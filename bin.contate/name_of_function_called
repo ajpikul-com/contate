@@ -1,0 +1,4 @@
+#!/bin/bash
+echo "This isn't really a loop."
+echo "This isn't really a loop."
+echo "it's just a couple of lines."

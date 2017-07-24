@@ -2,8 +2,8 @@
 # Author: Andrew Pikul (ajp@circuitandcode.com)
 # 
 #
-
-BUILD_DIR=build.contate/
+CNTT=./bin.contate/contate
+BUILD_DIR=build.contate
 STAGE_DIR=..
 RELEASE_DIR=
 
@@ -21,16 +21,17 @@ all: big
 # contate developers: media without .contate*, .template*, .content* should be recursively copied
 big:
 
-	./contate index.content > build/index.html
-	mkdir build/subpage
-	./contate subpage/index.content > build/subpage/index.html
-	mkdir build/about
+	${CNTT} index.content > ${BUILD_DIR}/index.html
 	
-	cp images build/images -r #maybe need a way to make arbitrary file types contatable (.css.content... makes sense)
-	cp css build/css -r
-	#run a diff with stage here
+	mkdir ${BUILD_DIR}/subpage
+	${CNTT} subpage/index.content > ${BUILD_DIR}/subpage/index.html
+	
+	cp images ${BUILD_DIR}/images -r #maybe need a way to make arbitrary file types contatable (.css.content... makes sense)
+	cp css ${BUILD_DIR}/css -r
+	@#run a diff with stage here
+
 stage:
-	rsync $(BUILD_DIR) $(STAGE_DIR) -vr #this is using modified time now which isn't apppropriate because it's always different
+	rsync $(BUILD_DIR)/ $(STAGE_DIR) -vr #this is using modified time now which isn't apppropriate because it's always different
 
 release:
 

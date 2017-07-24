@@ -7,6 +7,8 @@
 		<h1><!-- @sample_variable@ --></h1>
 		<h3>A Circuit and Code Production</h3>
 		<!-- @sample_include@ -->
+		<br>
+		<p>Take a break, have this loop in an external function:</p>
 		<!-- @sample_function@ -->
 	</body>
 </html>

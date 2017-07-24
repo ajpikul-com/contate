@@ -1,6 +1,6 @@
 <!-- contate:main.template:sample_include=this:-->
-<!-- contate:main.template:sample_function=stupid_loop:-->
-<!-- contate:main.template:_sample_variable="A Subpage":-->
+<!-- contate:main.template:sample_function=name_of_function_called:-->
+<!-- contate:main.template:sample_variable="A Subpage":-->
 <div>
 <p>This is the content of a subpage!.</p>
 </div>
