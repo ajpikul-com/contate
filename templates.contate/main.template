@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Sample Page</title>
+	</head>
+	<body>
+		<h1><!-- @sample_variable@ --></h1>
+		<h3>A Circuit and Code Production</h3>
+		<!-- @sample_include@ -->
+		<!-- @sample_function@ -->
+	</body>
+</html>

@@ -1,0 +1,6 @@
+<!-- contate:main.template:sample_include=this:-->
+<!-- contate:main.template:sample_function=name_of_function_called:-->
+<!-- contate:main.template:sample_variable="Main Page":-->
+<div>
+<a href="subpage/index.html>Go to the subpage</a>
+</div>

@@ -1,2 +1,12 @@
-# contate
-A **very** simple static website manager
+Goal: As few dependencies as possible
+Your Situation: You're using a CDN (Akimai, Cloudflare) for static content and webapps for dynamic content (node.js, maybe). The whole website is the same except for content...
+
+Command List:
+
+make: builds pages based off template (replaces <!-- content --> with content
+make preview: installs built pages into a build folder which is probably served for previewing changes. diffs with active site nad prints differences
+make install: installs built pages live
+
+use conf.conf to set proper directories
+
+this is an example folder, i guess
