@@ -1,8 +1,9 @@
-Last Review July 2017-07-24 by ayjayt
+![chart](https://github.com/circuitandcode/contate/raw/master/images/contate.png "infographic")
 
 README
 ------
-
+Last Full Review July 2017-07-24 by ayjayt
+------
 Contate is a static webpage generator, right now <100 lines of code.
 
 < 100 lines of code! Just look at these files:
