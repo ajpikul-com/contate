@@ -1,0 +1,131 @@
+#!/bin/bash
+# this is literally terrible work
+ME=${0}
+contate_file(){
+	# echo "Contate run in $(pwd): ${1}"
+	# go through file, find bash commands, and execute them, bring output to file
+	# use contate -e if a file your including is html with bash commands
+  # how do you know to echo not 
+	# $(pwd) will return directory where you ran make file, which you should think of as your "root"
+	THIS_FILE=''
+	while read -r line || [[ -n "$line" ]]
+	do
+		if [[ "$line" == *"<!-- contate:"* ]]; then
+			COMMAND=$(echo $line | cut -d':' -f 2 | awk -F '-->' '{$0=$1}1')
+			OUTPUT=`${COMMAND}`
+			THIS_FILE+=${OUTPUT}
+		else
+			THIS_FILE+=$line
+		fi
+	done < "$1"
+	if ! [ ${ECHO} ]
+	then
+		echo ${THIS_FILE} > $1
+	else
+		echo ${THIS_FILE}
+	fi
+	# now what do we do with this file
+}
+
+#iterate through directories, take arguments
+if [ $# -lt 1 ]
+then
+	echo "You must specific a folder (and -r) or a file"
+	exit
+fi
+
+while [ "$1" ]
+do
+	case $1 in
+	-s)
+		SILENT=true
+		shift
+		;;
+	-e)
+		SILENT=true
+		ECHO=true
+		shift
+		;;
+	-r)
+		REC=true
+		shift
+		;;
+	*)
+		WDIR=$1
+		shift
+		;;
+	esac
+done
+if [ -f "${WDIR}" ] || [ -d "${WDIR}" ]
+then
+	if ! [ SILENT ]
+	then
+		echo "Directory or File: ${WDIR}"	
+	fi
+else
+	echo "${WDIR} does not exist"
+	exit
+fi
+if [ -f ${WDIR} ]
+then
+	contate_file ${WDIR}
+fi
+if [ -d ${WDIR} ]
+then
+	if [ ${REC} ]
+	then
+		find ${WDIR} -name "*" -not -path '*/\.*' -type f -exec ${0} {} \;
+	else
+		echo "Did not specify -r"
+		exit
+	fi
+fi
+exit
+
+
+dbg(){
+	>&2 echo $1
+}
+dbg "Contate running on ${1}! (this is stderr)"
+THIS=''
+declare -A CONTATORS 
+while read -r line || [[ -n "$line" ]]; do
+	if	[[ "$line" == *"<!-- contate:"* ]]; then
+		TEMPLATE_FILE=$(echo $line | cut -d':' -f 2)
+		EXPR_STR=$(echo $line | cut -d':' -f 3)
+		TEMPLATE_VARIABLE=$(echo $EXPR_STR | cut -d'=' -f 1)
+		CONTENT_VALUE=$(echo $EXPR_STR | cut -d'=' -f 2)
+		CONTATORS["$TEMPLATE_VARIABLE"]="$CONTENT_VALUE"
+	else
+		THIS+="${line}\n"
+	fi
+done < "$1"
+OHTML=''
+while read -r line || [[ -n "$line" ]]; do
+	if [[ "$line" == *"<!-- @"* ]]; then
+		FIXED_LINE=''
+		TEMPLATE_VAR=$(echo $line | cut -d'@' -f 2)
+		CONTENT_VAL=${CONTATORS["${TEMPLATE_VAR}"]}
+		FIXED_LINE=$(echo $line | awk -F '<!-- @' '{$0=$1}1')
+		if [[ "$CONTENT_VAL" == '"'*'"' ]]; then
+			INSERTER=${CONTENT_VAL#*'"'}
+			INSERTER=${INSERTER%'"'*}
+		else
+			case $CONTENT_VAL in
+				this) #build in function, i guess. stupid way of doing this
+					INSERTER=${THIS}
+					;;
+				*)
+					dbg "running ${CONTENT_VAL}!"
+					INSERTER=`exec "./bin.contate/${CONTENT_VAL}"`
+					;;
+			esac
+		fi
+		FIXED_LINE+=${INSERTER}
+		FIXED_LINE+=$(echo $line | awk -F '@ -->' '{$0=$2}1')
+		OHTML+="${FIXED_LINE}\n"
+	else
+		OHTML+="${line}\n"
+	fi
+done < "./templates.contate/${TEMPLATE_FILE}"
+echo -e $OHTML
