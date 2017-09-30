@@ -20,6 +20,7 @@ It ignores all folders/files ending in "contate", as well as Makefile and README
 6) Use `contate -e` to include files that also have base commands (to check if works)
 7) use `make` and `make stage`
 
+Note: If you placed files/folders manually in the web directory, you must add them to ignore.contate or else rsync will delete them
 
 INSPIRATION
 -----------

@@ -16,7 +16,8 @@ all: big
 big:
 	# execute rsync on everything but .contate things
 	mkdir -p ${BUILD_DIR}
-	rsync -av . ${BUILD_DIR}/ --delete --exclude=.* --exclude=*.contate --exclude=contate --exclude=Makefile 
+	touch ignore.contate
+	rsync -av . ${BUILD_DIR}/ --delete --exclude=.* --exclude=*.contate --exclude=contate --exclude=Makefile --exclude-from=ignore.contate
 	${CNTT} ${BUILD_DIR} -r
 
 stage:
