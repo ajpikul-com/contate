@@ -1,8 +1,15 @@
-
-
 README
 ------
+Two Commands:
 
+    <!-- contate:BASH_COMMAND flag 1 flag 2 flag 3-->
+    <!-- contatev:VARIABLE_NAME
+    VARIABLE
+    CONTENTS
+    HERE
+    -->
+    <!-- concate:echo ${VARIABLE_NAME} -->
+Syntax is picky
 Contate is a static website generator that allows you to embed bash commands in your webpages. It relies on rsync and make.
 It ignores all folders/files ending in "contate", as well as Makefile and README.md in the root directory.
 1) Create a development directory for your website

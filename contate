@@ -1,5 +1,6 @@
 #!/bin/bash
 # this is literally terrible work
+set -a
 ME=${0}
 contate_file(){
 	# echo "Contate run in $(pwd): ${1}"
@@ -8,21 +9,43 @@ contate_file(){
   # how do you know to echo not 
 	# $(pwd) will return directory where you ran make file, which you should think of as your "root"
 	THIS_FILE=''
-	while read -r line || [[ -n "$line" ]]
+	ISVAR=false
+	while IFS= read -r line || [[ -n "$line" ]]
 	do
-		if [[ "$line" == *"<!-- contate:"* ]]; then
-			COMMAND=$(echo $line | cut -d':' -f 2 | awk -F '-->' '{$0=$1}1')
-			OUTPUT=`${COMMAND}`
-			THIS_FILE+=${OUTPUT}
+		if ! [ ${SILENT} ]; then echo "Line to process (var = ${ISVAR}): ${line}".; fi
+		if [[ "$line" == *"<!-- contatev:"* ]]; then
+			ISVAR=true
+			varName=$(echo -e $line | cut -d':' -f 2)
+			newVarValue=''
+			if ! [ ${SILENT} ]; then echo 'on'; fi
+		elif [ ${ISVAR} = true ]; then
+			if [[ "$line" == *"-->"* ]]; then
+				ISVAR=false
+				eval ${varName}='${newVarValue}'
+				echo -e "Var: ${varName}=${!varName}"
+				if ! [ ${SILENT} ]; then echo ${ISVAR}; fi
+				if ! [ ${SILENT} ]; then echo 'off'; fi
+			else	
+				newVarValue+=`echo -e "$line"`
+				newVarValue+='\n' # again this is a matter of IFS
+			fi
+		elif [[ "$line" == *"<!-- contate:"* ]]; then
+			if ! [ ${SILENT} ]; then echo 'Is command'; fi
+			COMMAND="$(echo -e $line | cut -d':' -f 2 | awk -F '-->' '{$0=$1}1')"
+			OUTPUT=`eval ${COMMAND}`
+			if ! [ ${SILENT} ]; then echo "Output: ${OUTPUT}"; fi
+			THIS_FILE+="${OUTPUT}"
+			THIS_FILE+='\n'
 		else
-			THIS_FILE+=$line
+			THIS_FILE+="$line"
+			THIS_FILE+='\n' #this should be set with IFS and the loop somehow, not sure
 		fi
 	done < "$1"
 	if ! [ ${ECHO} ]
 	then
-		echo ${THIS_FILE} > $1
+		echo -e "${THIS_FILE}" > $1
 	else
-		echo ${THIS_FILE}
+		echo -e "${THIS_FILE}"
 	fi
 	# now what do we do with this file
 }
