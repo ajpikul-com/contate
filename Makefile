@@ -20,12 +20,12 @@ big:
 	@echo "Rsync will delete files in the destination folder. If this list doesn't look dangerous, edit the Makefile and remove the -n option from rsync in big"	
 	@echo "Add folders to protect to ignore.contate, and makes sure the variables at the top of this Makefile are correct!"
 	@echo ""
-	@rsync -av . ${BUILD_DIR}/ --exclude=.* --exclude=*.contate --exclude=contate --exclude=Makefile --exclude-from=ignore.contate --delete -n | grep deleting
-	@#${CNTT} ${BUILD_DIR} -r
+	@rsync -av . ${BUILD_DIR}/ --exclude=.* --exclude=*.contate --exclude=contate --exclude=Makefile --exclude-from=ignore.contate --delete -n | grep deleting; true
+	${CNTT} ${BUILD_DIR} -r
 
 stage:
 	@echo "STAGE: Rsync will delete files in the destination folder. If this list doesn't look dangerous, edit the Makefile and remove the -n option from rsync in stage"	
-	rsync $(BUILD_DIR)/ $(STAGE_DIR) -va --exclude=.* --exclude=*.contate --exclude=contate --exclude=Makefile --exclude-from=ignore.contate --delete -n | grep deleting
+	rsync $(BUILD_DIR)/ $(STAGE_DIR) -va --exclude=.* --exclude=*.contate --exclude=contate --exclude=Makefile --exclude-from=ignore.contate --delete -n | grep deleting; true
 
 release:
 
