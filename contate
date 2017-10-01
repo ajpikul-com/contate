@@ -10,6 +10,7 @@ contate_file(){
 	# $(pwd) will return directory where you ran make file, which you should think of as your "root"
 	THIS_FILE=''
 	ISVAR=false
+	
 	while IFS= read -r line || [[ -n "$line" ]]
 	do
 		if ! [ ${SILENT} ]; then echo "Line to process (var = ${ISVAR}): ${line}".; fi
@@ -91,7 +92,11 @@ else
 fi
 if [ -f ${WDIR} ]
 then
-	contate_file ${WDIR}
+	if file ${WDIR} | grep ASCII -qI &>/dev/null; then
+		contate_file ${WDIR}
+	else
+		exit
+	fi
 fi
 if [ -d ${WDIR} ]
 then
