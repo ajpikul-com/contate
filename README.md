@@ -29,7 +29,7 @@ Also, you can run it without a destination, so it dumps all output to standard o
 
 Since ANY output that occurs between the '<!-- contate:' makes it to the script, you can chain the contate command.
 
-You can also exclude files and cp files wholesale. By default, anything '.*', 'Makefile', '*.contate', '*/*contate/*' is excluded.
+You can also exclude files and cp files wholesale. By default, anything '.\*', 'Makefile', '\*.contate', '\*/\*contate/\*' is excluded.
 
 ## Quick Start
 
