@@ -33,7 +33,7 @@ You can also exclude files and cp files wholesale. By default, anything '.\*', '
 
 ## Quick Start
 
-Clone this into a directory where you want to make some documents (git submodule?), copy the Makefile from here to the root, and edit a few variabels at the top of the Makefile to set your "build" "stage" and "release" directories, if you need all that.
+Clone this into a directory where you want to make some documents (git submodule?), copy the Makefile from this to the root (presumably ../ if you cloned contate like I said), and edit a few variables at the head of the Makefile to set your "build" "stage" and "release" directories, if you need all that.
 
 ## Usage
 
@@ -41,7 +41,7 @@ Clone this into a directory where you want to make some documents (git submodule
 
 **`--inherit`**
 
-Any "contates" run inherit the output instructions (below), the --quite or --debug flags, and any patterns sent through --copy or --exclude. This must be first.
+Any `contate` run from a script inherit the output instructions (below): the --quiet or --debug flags, and any patterns sent through --copy or --exclude. This must be first. Inputs are always unset.
 
 **`-i` or `--input`**
 
@@ -77,12 +77,12 @@ Not being used, was meant to run scripts instead of embedding them.
 
 **`-v` or `--exclude`**
 
-Set or retreive variable, depending on whether or not there is a Key=Value format. Doesn't do any escaping, yet. Internally, the script uses a setvar, getvar function that stores all variables in a big list in a temporary file, and passes the name of that to each script it calls in the variable TMP_VAR. You can set TMP_VAR yourself, if you want, then you'll have a copy of it.
+Set or retreive variables, depending on whether or not there is a Key=Value format. Doesn't do any escaping, yet. Internally, the script uses a setvar, getvar function that stores all variables in a big list in a temporary file, and passes the name of that to each script it calls in the variable TMP_VAR. You can set TMP_VAR yourself, if you want, then you'll have a copy of it and can pass it between processes to share variable lists. By default, it's always inherited.
 
 **`-c` or `--copy`**
 
-Use quotes to include search patterns, justs uses a test FILE1 -ef FILE2 type checking.
+Use quotes to include search patterns, just uses a test FILE1 -ef FILE2 type checking.
 
 ## Issues
 
-Don't use -v or setvar,getvar (which you can use in yuor bash scripts) for complicated variables. Make your own temporary file, in that case. It's just not escaped or anything properly. Be ultra conservative with quoting exclude and copy, for the same reason.
+Don't use -v or setvar,getvar (which you CAN use in your bash scripts) for complicated variables. Make your own temporary file, in that case. It's just not escaped or anything properly. Be ultra conservative with quoting exclude and copy, for the same reason.
