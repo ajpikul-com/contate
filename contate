@@ -1,162 +1,253 @@
 #!/bin/bash
-# this is literally terrible work
+
 set -a
-PPPPDIR=${PPPDIR}
-PPPDIR=${PPDIR}
-PPDIR=${PDIR}
-PDIR=${WDIR}
-ME=${0}
-contate_file(){
-	# echo "Contate run in $(pwd): ${1}"
-	# go through file, find bash commands, and execute them, bring output to file
-	# use contate -e if a file your including is html with bash commands
-  # how do you know to echo not 
-	# $(pwd) will return directory where you ran make file, which you should think of as your "root"
-	THIS_FILE=''
-	ISVAR=false
+
+if [ -z "${TMP_VAR}" ]; then
+	TMP_VAR=$(mktemp)
+	TMP_OWNER=true
+else
+	TMP_OWNER=false
+fi
+dbg(){
+	if $DEBUG; then
+		>&2 echo $1
+	fi
+}
+
+err(){
+	if $QUIET; then
+		>&2 echo $1
+	fi
+}
+usage(){
+	echo "Usage: $1" 1>&2
+	if $TMP_OWNER && test -f $TMP_VAR; then
+		rm $TMP_VAR
+	fi
+	exit
+}
+
+# the following just compares the real path against each , deliminted "copy" argument
+# may lead to some untuitive behaviors, but since it's relying on common programs to parse
+# it will still be pretty intuitive
+cmp(){
+	dbg "Check cmp $1 $2"
+	for i in $2; do
+		dbg "$i = $1"
+		if [ $i -ef $1 ]; then
+			dbg "copying!"
+			return 0
+		fi
+	done
+	return 1
+}
+
+setvar(){
+	dbg "Setting var"
+	if [ -f ${TMP_VAR} ]; then
+		if grep ${TMP_VAR} -e "$1="; then
+			sed -i ${TMP} -e "s/${1}=.*/{$1}=${2}/"
+		else
+			echo "${1}=${2}" >> ${TMP_VAR}
+		fi
+		dbg "temp file:"
+		dbg "$(cat ${TMP_VAR})"
+		dbg "temp file<-:"
+	else
+		exit
+	fi
+}
+getvar(){
+	if [ -f ${TMP_VAR} ]; then
+		dbg "find $1 in cat: $(cat ${TMP_VAR})"
+		dbg "grep: $(grep ${TMP_VAR} -e "$1=")"
+		echo $(grep ${TMP_VAR} -e "$1=" | cut -d '=' -f 2-)
+	fi
+}
+testfunction(){
+	echo "not much"
+}
+
+contate_file(){ #1 = file to read; ret=CONTATED_FILE (currently processing)
+	FILE_TO_CONTATE=$1
+	CONTATED_FILE=""
 	while IFS= read -r line || [[ -n "$line" ]]
 	do
-		if ! [ ${SILENT} ]; then echo "Line to process (var = ${ISVAR}): ${line}".; fi
-		if [[ "$line" == *"<!-- contatev:"* ]]; then
-			ISVAR=true
-			varName=$(echo -e $line | cut -d':' -f 2)
-			newVarValue=''
-			if ! [ ${SILENT} ]; then echo 'on'; fi
-		elif [ ${ISVAR} = true ]; then
-			if [[ "$line" == *"-->"* ]]; then
-				ISVAR=false
-				eval ${varName}='${newVarValue}'
-				echo -e "Var: ${varName}=${!varName}"
-				if ! [ ${SILENT} ]; then echo ${ISVAR}; fi
-				if ! [ ${SILENT} ]; then echo 'off'; fi
-			else	
-				newVarValue+=`echo -e "$line"`
-				newVarValue+='\n' # again this is a matter of IFS
+# single-line contate commands > shebang+contate command, but parser programming is work
+		dbg "Line read: $line"
+		if [ -n "${TMP_SCRIPT}" ]; then
+			if [[ "$(awk '{$1=$1};1' <<< "$line")" == ":contate -->" ]]; then
+				chmod +x $TMP_SCRIPT
+				CONTATED_FILE+=$($TMP_SCRIPT)'\n'
+				rm $TMP_SCRIPT
+				TMP_SCRIPT=""
+				dbg "script closed"
+			else
+				echo -e "$line" >> $TMP_SCRIPT
+				dbg "added $line to $TMP_SCRIPT"
 			fi
-		elif [[ "$line" == *"<!-- contate:"* ]]; then
-			if ! [ ${SILENT} ]; then echo 'Is command'; fi
-			COMMAND="$(echo -e $line | cut -d':' -f 2 | awk -F '-->' '{$0=$1}1')"
-			OUTPUT=`eval ${COMMAND}`
-			if ! [ ${SILENT} ]; then echo "Output: ${OUTPUT}"; fi
-			THIS_FILE+="${OUTPUT}"
-			THIS_FILE+='\n'
+		elif [[ "$(awk '{$1=$1};1' <<< "$line")" == "<!-- contate:" ]]; then
+			TMP_SCRIPT=$(mktemp)
+			dbg "started $TMP_SCRIPT"
 		else
-			THIS_FILE+="$line"
-			THIS_FILE+='\n' #this should be set with IFS and the loop somehow, not sure
+			CONTATED_FILE+="$line"'\n'
+			dbg "0-script line: $line"
 		fi
-	done < "$1"
-	if ! [ ${ECHO} ]
-	then
-		echo -e "${THIS_FILE}" > $1
-	else
-		echo -e "${THIS_FILE}"
+	done < "$FILE_TO_CONTATE"
+	dbg "File processed"
+	# nice to check contents of target too and see if they are the same
+	# then we can preserve access-time
+	if [ -n "$2" ];	then
+		echo -ne "${CONTATED_FILE}" > $2
+	elif [ "$PRINT" = "true" ]; then
+		echo -ne "${CONTATED_FILE}"
 	fi
-	# now what do we do with this file
 }
-
-#iterate through directories, take arguments
-if [ $# -lt 1 ]
-then
-	echo "You must specific a folder (and -r) or a file"
-	exit
+if [ ! "$1" = "--inherit" ]; then
+	unset OUTPUT
+	unset PRINT
+	unset RECURSE
+	unset DEBUG
+	unset QUIET
+	unset COPY_ARG
+	unset EXCLUDE
+else 
+	shift
 fi
+unset TARGET
+unset SCRIPTDIR
+unset VARIABLE_ARG
 
-while [ "$1" ]
-do
-	case $1 in
-	-s)
-		SILENT=true
-		shift
+while [ "$1" ] ; do
+	dbg "Process: $1"
+	case "$1" in
+	'-i'|'--input')
+		TARGET=$2	
+		if [ -d "$TARGET" ]; then
+			ROOT_INPUT_DIR=$(realpath $TARGET)
+		fi
+		shift 2
 		;;
-	-e)
-		SILENT=true
-		ECHO=true
-		shift
+	'--inherit')
+		usage "--inherit must be first"
 		;;
-	-r)
-		REC=true
-		shift
+	'-o'|'--output')
+		OUTPUT=$2
+		if  test ! -f "$OUTPUT" && test ! -d "$OUTPUT"; then
+			if [ ! -d "$(dirname $OUTPUT)" ]; then
+				usage "Output is neither file nor directory"
+			fi
+		fi
+		PRINT=false
+		shift 2
+		;;
+	'-p'|'--print')
+		PRINT=true
+		OUTPUT=""
+		shift 1
+		;;
+	'-r'|'--recursive')
+		RECURSE=true
+		shift 1
+		;;
+	'-d'|'--debug')
+		DEBUG=true	
+		shift 1
+		;;
+	'-e'|'--exclude')
+		EXCLUDE="$2"
+		shift 2
+		;;
+	'-q'|'--quiet')
+		QUIET=true
+		shift 1
+		;;
+	# contate expects to take a target, and then process it, this seems silly
+	'-s'|'--script')
+		SCRIPTDIR=$2
+		shift 2
+		;;
+	'-v'|'--var')
+		VARIABLE_ARG=$2
+		shift 2	
+		;;
+	'-c'|'--copy')
+		COPY_ARG+="$2"
+		dbg "copy args: $COPY_ARG"
+		shift 2
 		;;
 	*)
-		WDIR=$1
-		shift
-		;;
+		usage "What is this: $1?"	
+	;;
 	esac
 done
-if [ -f "${WDIR}" ] || [ -d "${WDIR}" ]
-then
-	if ! [ SILENT ]
-	then
-		echo "Directory or File: ${WDIR}"	
-	fi
-else
-	echo "${WDIR} does not exist"
-	exit
-fi
-if [ -f ${WDIR} ]
-then
-	if file ${WDIR} | grep ASCII -qI &>/dev/null; then
-		contate_file ${WDIR}
-	else
-		exit
-	fi
-fi
-if [ -d ${WDIR} ]
-then
-	if [ ${REC} ]
-	then
-		find ${WDIR} -name "*" -not -path '*/\.*' -type f -exec ${0} {} \;
-	else
-		echo "Did not specify -r"
-		exit
-	fi
-fi
-exit
 
-
-dbg(){
-	>&2 echo $1
-}
-dbg "Contate running on ${1}! (this is stderr)"
-THIS=''
-declare -A CONTATORS 
-while read -r line || [[ -n "$line" ]]; do
-	if	[[ "$line" == *"<!-- contate:"* ]]; then
-		TEMPLATE_FILE=$(echo $line | cut -d':' -f 2)
-		EXPR_STR=$(echo $line | cut -d':' -f 3)
-		TEMPLATE_VARIABLE=$(echo $EXPR_STR | cut -d'=' -f 1)
-		CONTENT_VALUE=$(echo $EXPR_STR | cut -d'=' -f 2)
-		CONTATORS["$TEMPLATE_VARIABLE"]="$CONTENT_VALUE"
-	else
-		THIS+="${line}\n"
-	fi
-done < "$1"
-OHTML=''
-while read -r line || [[ -n "$line" ]]; do
-	if [[ "$line" == *"<!-- @"* ]]; then
-		FIXED_LINE=''
-		TEMPLATE_VAR=$(echo $line | cut -d'@' -f 2)
-		CONTENT_VAL=${CONTATORS["${TEMPLATE_VAR}"]}
-		FIXED_LINE=$(echo $line | awk -F '<!-- @' '{$0=$1}1')
-		if [[ "$CONTENT_VAL" == '"'*'"' ]]; then
-			INSERTER=${CONTENT_VAL#*'"'}
-			INSERTER=${INSERTER%'"'*}
-		else
-			case $CONTENT_VAL in
-				this) #build in function, i guess. stupid way of doing this
-					INSERTER=${THIS}
-					;;
-				*)
-					dbg "running ${CONTENT_VAL}!"
-					INSERTER=`exec "./bin.contate/${CONTENT_VAL}"`
-					;;
-			esac
+#add a way to copy all non-ascii files automatically
+if test -z "$PRINT" && test -z "$OUTPUT" && test -z "$VARIABLE_ARG"; then
+	usage "You need to specify file output or stdout"
+elif test -z "$TARGET" && test -z "$SCRIPTDIR" && test -z "$VARIABLE_ARG" ; then
+	usage "You need either an input file (-i) a script to run (-s) or a variable to un/set (-v)"
+elif [ -n "$TARGET" ]; then
+	if test -f "${TARGET}" || test -d "${TARGET}";	then
+		dbg "Directory or File: ${TARGET}"	
+		if [ -f "${TARGET}" ];	then
+			dbg "Target is a File"
+			if [ -d "${OUTPUT}" ]; then
+				dbg "Output is directory"
+				COPIED_PATH=""
+				if [ -n "$ROOT_INPUT_DIR" ]; then
+					dbg "Input was directory so trying to process copyable path suffix"
+					COPIED_PATH=$(echo $(dirname $(realpath $TARGET)) | sed "s|${ROOT_INPUT_DIR}||" )/
+				fi
+				mkdir -p ${OUTPUT}/${COPIED_PATH}
+				SPECIFIC_OUTPUT="${OUTPUT}/${COPIED_PATH}$(basename ${TARGET})"
+			else
+				SPECIFIC_OUTPUT="${OUTPUT}"
+			fi
+			dbg "Specific Output: $SPECIFIC_OUTPUT"
+# check if target is in copy, and just copy it
+# check if all non asci are in copy
+			if test ! "$PRINT" = "true" && cmp $(realpath ${TARGET}) "$COPY_ARG"; then
+				dbg "Print: $PRINT"
+				cp ${TARGET} ${SPECIFIC_OUTPUT}
+			elif file ${TARGET} | grep ASCII -qI &>/dev/null; then
+				dbg "GOING INTO CONTATE FUNCTION"
+				contate_file ${TARGET} ${SPECIFIC_OUTPUT}
+			else
+				exit
+			fi
 		fi
-		FIXED_LINE+=${INSERTER}
-		FIXED_LINE+=$(echo $line | awk -F '@ -->' '{$0=$2}1')
-		OHTML+="${FIXED_LINE}\n"
+		if [ -d ${TARGET} ]; then
+			dbg "Target is directory"
+			if test -n "${OUTPUT}" && test ! -d "${OUTPUT}"; then
+				usage "Target is a directory, so output must be a directory or empty w/ --print"
+			fi
+			if [ ${RECURSE} ];	then
+#must add excludes
+				dbg "executing find on $(realpath ${TARGET}) with ${0} --inherit -i"
+				find $(realpath ${TARGET}) -name '*' -not -path '*/\.*' -not -name 'Makefile' -not -name '*.contate' -not -path '*/*contate/*' -type f $EXCLUDE -exec ${0} --inherit -i {} \;
+			else
+				usage	"Target is a directory but recurse is not set (-r)"
+				exit
+			fi
+		fi
 	else
-		OHTML+="${line}\n"
+		if ! $QUIET; then
+			exit "${TARGET} does not exist"
+		else
+			exit
+		fi
 	fi
-done < "./templates.contate/${TEMPLATE_FILE}"
-echo -e $OHTML
+elif [ -n "$VARIABLE_ARG" ]; then
+	if grep -e "=" <<< $VARIABLE_ARG; then
+		setvar "$(echo $VARIABLE_ARG | cut -d "=" -f 1)" "$(echo $VARIABLE_ARG | cut -d "=" -f 2)"
+	else
+		echo $(getvar $VARIABLE_ARG)
+	fi
+elif [ -n "$SCRIPTDIR" ]; then
+	exit "This is not supported yet and I don't know why I thought I needed it"
+fi
+
+if $TMP_OWNER; then
+	rm $TMP_VAR
+fi

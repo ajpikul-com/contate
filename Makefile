@@ -2,33 +2,35 @@
 # Author: Andrew Pikul (ajp@circuitandcode.com)
 # 
 #
-CNTT= ./contate/contate -s
+
+CNTT= ./contate/contate 
 BUILD_DIR=build.contate
-STAGE_DIR=../circuitandcode.com/
+STAGE_DIR=
 RELEASE_DIR=
 
-#idea is that we might use make properly instead of using big
-#which just recompiles everything everytime
-#it's pretty fucked at this point
-all: big
+ifndef STAGE_DIR
+$(error stage directory is not set- do so or surpress this)
+endif
+ifndef RELEASE_DIR
+$(error release directory is not set- do so or surpress this)
+endif
 
-
-big:
+# no deps, just does everything w/e, contate doesn't even take lists
+# so this could be better, like apps/ should be a variable that takes deliminated directories
+# contate should probably also read a file named copy.contate
+all: 
 	@# execute rsync on everything but .contate things
 	@mkdir -p ${BUILD_DIR}
-	@touch ignore.contate
-	@echo "Rsync will delete files in the destination folder. If this list doesn't look dangerous, edit the Makefile and remove the -n option from rsync in big"	
-	@echo "Add folders to protect to ignore.contate, and makes sure the variables at the top of this Makefile are correct!"
-	@echo ""
-	@rsync -av . ${BUILD_DIR}/ --exclude=.* --exclude=*.contate --exclude=contate --exclude=Makefile --exclude-from=ignore.contate --delete -n | grep deleting; true
-	${CNTT} ${BUILD_DIR} -r
+	${CNTT} -i . -o ${BUILD_DIR} -r -c "apps/*" -c "images/*" -c "media/*" -c "css/*" -c "js/*"
 
+# we need a direct stage- so -o $(STAGE_DIR)
 stage:
 	@echo "STAGE: Rsync will delete files in the destination folder. If this list doesn't look dangerous, edit the Makefile and remove the -n option from rsync in stage"	
-	rsync $(BUILD_DIR)/ $(STAGE_DIR) -va --exclude=.* --exclude=*.contate --exclude=contate --exclude=Makefile --exclude-from=ignore.contate --delete -n | grep deleting; true
+	rsync $(BUILD_DIR)/ $(STAGE_DIR) -va --delete -n | grep deleting; true
 
 release:
-
+	@echo "STAGE: Rsync will delete files in the destination folder. If this list doesn't look dangerous, edit the Makefile and remove the -n option from rsync in stage"	
+	rsync $(BUILD_DIR)/ $(RELEASE_DIR) -va --delete -n | grep deleting; true
 
 clean:
 	rm -f $(BUILD_DIR)/* -r 
