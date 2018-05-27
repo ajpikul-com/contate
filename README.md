@@ -2,7 +2,7 @@
 
 ## Overview
 
-Contate is like a "cp" command that process the files during the copy.
+Contate is like a "cp" command that processes the files during the copy.
 
 It looks for
 ```
