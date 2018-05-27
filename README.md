@@ -6,18 +6,18 @@ Contate is like a "cp" command that process the files during the copy.
 
 It looks for
 ```...whatever text up here...
-```<!-- contate:
-```#!/bin/bash
-```echo "Some script output"
-```:contate -->
-```...whatever text down here...
+<!-- contate:
+#!/bin/bash
+echo "Some script output"
+:contate -->
+...whatever text down here...```
 and executes the script by copying it to a temporary file and running it.
 
 You get:
 
 ```...whatever text up here...
-```Some script output
-```...whatever text down here...
+Some script output
+...whatever text down here...```
 
 Basically, you can embed arbitrary scripts in HTML documents.
 
