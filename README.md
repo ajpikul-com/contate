@@ -55,7 +55,7 @@ What file should the result be output to? Can't have this and -p at the same tim
 
 Don't store the output in a file, print it to stdout. Can't have this an -o at the same time.
 
-**`-r` or `--revursive`**
+**`-r` or `--recursive`**
 
 Essential if -i is a directory, in true penguin fashion.
 
@@ -67,15 +67,15 @@ Print out a whole bunch of absolutely poorly formed crap to stderr.
 
 Whatever you put here (quote it) gets sent wholesale to the `find` command that handles "recursion". So "-not -path \"*whatever*\"", for example.
 
-**`-q` or `--exclude`**
+**`-q` or `--quiet`**
 
 Die quietly. No stderr. I think.
 
-**`-s` or `--exclude`**
+**`-s` or `--script`**
 
 Not being used, was meant to run scripts instead of embedding them.
 
-**`-v` or `--exclude`**
+**`-v` or `--var`**
 
 Set or retreive variables, depending on whether or not there is a Key=Value format. Doesn't do any escaping, yet. Internally, the script uses a setvar, getvar function that stores all variables in a big list in a temporary file, and passes the name of that to each script it calls in the variable TMP_VAR. You can set TMP_VAR yourself, if you want, then you'll have a copy of it and can pass it between processes to share variable lists. By default, it's always inherited.
 
