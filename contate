@@ -23,6 +23,7 @@ usage(){
 	echo "Usage: $1" 1>&2
 	if $TMP_OWNER && test -f $TMP_VAR; then
 		rm $TMP_VAR
+		dbg "rmed"
 	fi
 	exit
 }
@@ -69,6 +70,7 @@ testfunction(){
 }
 
 contate_file(){ #1 = file to read; ret=CONTATED_FILE (currently processing)
+	unset TMP_SCRIPT
 	FILE_TO_CONTATE=$1
 	CONTATED_FILE=""
 	while IFS= read -r line || [[ -n "$line" ]]
@@ -77,16 +79,25 @@ contate_file(){ #1 = file to read; ret=CONTATED_FILE (currently processing)
 		dbg "Line read: $line"
 		if [ -n "${TMP_SCRIPT}" ]; then
 			if [[ "$(awk '{$1=$1};1' <<< "$line")" == ":contate -->" ]]; then
+				dbg "$(cat $TMP_SCRIPT)"
 				chmod +x $TMP_SCRIPT
+				if [ "$IS_C" = "true" ]; then
+					mv "$TMP_SCRIPT" "$TMP_SCRIPT".c
+					TMP_SCRIPT="$TMP_SCRIPT".c
+				fi
 				CONTATED_FILE+=$($TMP_SCRIPT)'\n'
-				rm $TMP_SCRIPT
+				#rm $TMP_SCRIPT
 				TMP_SCRIPT=""
 				dbg "script closed"
 			else
-				echo -e "$line" >> $TMP_SCRIPT
+				if grep -e "tcc -run" <<< $line; then
+					IS_C=true
+				fi
+				echo "$line" >> $TMP_SCRIPT
 				dbg "added $line to $TMP_SCRIPT"
 			fi
 		elif [[ "$(awk '{$1=$1};1' <<< "$line")" == "<!-- contate:" ]]; then
+			IS_C=false
 			TMP_SCRIPT=$(mktemp)
 			dbg "started $TMP_SCRIPT"
 		else
@@ -250,4 +261,5 @@ fi
 
 if $TMP_OWNER; then
 	rm $TMP_VAR
+	dbg "rmed"
 fi
