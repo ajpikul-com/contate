@@ -43,9 +43,10 @@ Clone this into a directory where you want to make some documents (git submodule
 
 ### Flags:
 
-**`--inherit`**
+**`--clear`**
 
-Any `contate` run from a script inherit the output instructions (below): the --quiet or --debug flags, and any patterns sent through --copy or --exclude. This must be first. Inputs are always unset.
+Contate naturally inherits variables/settings when called from within other contate. This tells it to unset a bunch of things. It will mess a ton of stuff up though, so don't use it. I just don't know what to do yet.
+
 
 **`-i` or `--input`**
 
@@ -81,7 +82,7 @@ Not being used, was meant to run scripts instead of embedding them.
 
 **`-v` or `--var`**
 
-Set or retreive variables, depending on whether or not there is a Key=Value format. Doesn't do any escaping, yet. Internally, the script uses a setvar, getvar function that stores all variables in a big list in a temporary file, and passes the name of that to each script it calls in the variable TMP_VAR. You can set TMP_VAR yourself, if you want, then you'll have a copy of it and can pass it between processes to share variable lists. By default, it's always inherited.
+Takes two arguments, and either sets or gets. No point running this if not being called by another contate which provided a TMP_VAR env variable defining which files variables are stored in.
 
 **`-c` or `--copy`**
 
