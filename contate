@@ -17,12 +17,13 @@ err(){
 	if [ "$QUIET" = true ]; then
 		>&2 echo "$1"
 	fi
+	usage
 }
 
 usage(){
 	echo "Usage: $1" 1>&2
 	if "$TMP_OWNER" && test -f "$TMP_VAR"; then
-		rm "$TMP_VAR"
+		#rm "$TMP_VAR"
 		dbg "rmed $TMP_VAR"
 	fi
 	exit
@@ -42,28 +43,31 @@ cmp(){
 	return 1
 }
 
+# 1- var to set
+# 2- value
 setvar(){
-	dbg "Setting var"
+	dbg $'\t\t\t'"Setting var $1 $2"$'\t\t\t\t******setvar'
 	if [ -f "${TMP_VAR}" ]; then
-		if grep "${TMP_VAR}" -e "$1="; then
-			sed -i "${TMP}" -e "s/${1}=.*/{$1}=${2}/"
-		else
-			echo "${1}=${2}" >> "${TMP_VAR}"
-		fi
-		dbg "temp file:"
-		dbg "$(cat "${TMP_VAR}")"
-		dbg "temp file<-:"
+		sed -i'' "/${1}=/d" "${TMP_VAR}"
+		echo "${1}=${2}" >> "${TMP_VAR}"
 	else
-		exit
+		err "No variable file"
 	fi
 }
 getvar(){
+	dbg $'\t\t\t\t\t*****************getvar'
 	if [ -f "${TMP_VAR}" ]; then
-		dbg "find $1 in cat: $(cat "${TMP_VAR}")"
-		dbg "grep: $(grep "${TMP_VAR}" -e "$1=")"
 		grep "${TMP_VAR}" -e "$1=" | cut -d '=' -f 2-
 	fi
 }
+
+export -f setvar
+export -f getvar
+export -f dbg
+export -f usage
+export -f cmp
+export -f err
+
 
 # 1- Target file
 # 2- Output file
@@ -125,19 +129,21 @@ contate_file(){
 	fi
 }
 if [ ! "$1" = "--inherit" ]; then
-	unset OUTPUT
-	unset PRINT
-	unset RECURSE
-	unset DEBUG
-	unset QUIET
-	unset COPY_ARG
-	unset EXCLUDE
+	#unset OUTPUT
+	#unset PRINT
+	#unset RECURSE
+	#unset DEBUG
+	#unset QUIET
+	#unset COPY_ARG
+	#unset EXCLUDE
+	dbg "no unsetting"
 else 
 	shift
 fi
 unset TARGET
 unset SCRIPTDIR
 unset VARIABLE_ARG
+unset VARIABLE_ARG2
 
 while [ "$1" ] ; do
 	dbg "Process: $1"
@@ -190,7 +196,14 @@ while [ "$1" ] ; do
 		;;
 	'-v'|'--var')
 		VARIABLE_ARG="$2"
-		shift 2	
+		VARIABLE_ARG2="$3"
+		if [ -n "$VARIABLE_ARG2" ]; then
+			dbg "var setting"
+			shift 3	
+		else
+			dbg "var getting"
+			shift 2
+		fi
 		;;
 	'-c'|'--copy')
 		export COPY_ARG+="$2"
@@ -243,9 +256,12 @@ elif test -d "${TARGET}" ; then
 	find "$(realpath "${TARGET}")" -name '*' -not -path '*/\.*' -not -name 'Makefile' -not -name '*.contate' -not -path '*/*contate/*' -type f $EXCLUDE -exec "${0}" --inherit -i {} \;
 # not the way to handle variable args
 elif [ -n "$VARIABLE_ARG" ]; then
-	if grep -e "=" <<<"$VARIABLE_ARG"; then
-		setvar "$(echo "$VARIABLE_ARG" | cut -d "=" -f 1)" "$(echo "$VARIABLE_ARG" | cut -d "=" -f 2)"
+	dbg "printing variable"
+	if [ -n "$VARIABLE_ARG2" ]; then
+		dbg "sat $VARIABLE_ARG $VARIABLE_ARG2"
+		setvar "$VARIABLE_ARG" "$VARIABLE_ARG2"
 	else
+		dbg "gat"
 		getvar "$VARIABLE_ARG"
 	fi
 elif [ -n "$SCRIPTDIR" ]; then
@@ -253,6 +269,6 @@ elif [ -n "$SCRIPTDIR" ]; then
 fi
 
 if [ "$TMP_OWNER" = true ]; then
-	rm "$TMP_VAR"
+	#rm "$TMP_VAR"
 	dbg "rmed $TMP_VAR"
 fi
