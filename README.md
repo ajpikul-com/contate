@@ -1,5 +1,9 @@
 # README
 
+## See what people have to say:
+
+![relevant](https://user-images.githubusercontent.com/30324885/40633997-d267bd8c-62c0-11e8-8a08-a3b77d6cddc3.png)
+
 ## Overview
 
 Contate is like a "cp" command that processes the files during the copy.
