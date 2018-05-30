@@ -217,7 +217,7 @@ elif [ -f "${TARGET}" ];	then
 	if cmp "$(realpath "${TARGET}")" "$COPY_ARG"; then
 		dbg "cpy $TARGET"$'\n'
 		if test ! "$PRINT" = true; then
-			cp "${TARGET}" "${SPECIFIC_OUTPUT}"
+			cp -up "${TARGET}" "${SPECIFIC_OUTPUT}"
 		else
 			cat "${TARGET}"
 		fi
@@ -225,7 +225,7 @@ elif [ -f "${TARGET}" ];	then
 		contate_file "${TARGET}" "${SPECIFIC_OUTPUT}"
 	elif test "$COPY_ALL_NASCII" = true && test ! "${PRINT}" = true; then
 		dbg "copy because not ascii"
-		cp "${TARGET}" "${SPECIFIC_OUTPUT}"	
+		cp -up "${TARGET}" "${SPECIFIC_OUTPUT}"	
 	else
 		err "Found non-ascii files to be contated without \
 					a flag to copy all non-ascii files or tried to \
