@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# d_reload - will just load the file into the map. It's called during d_start and probably after running another contate
+function d_reload {
+	unset D_CACHE
+	declare -A D_CACHE
+	while IFS= read -r line; do
+		D_CACHE["${line%%=*}"]="${line#*=}"
+	done < "${D_FILE}"
+	export D_CACHE
+}
+
+# d_rewrite - will write the map to the file, should be called anytime we modify the cache
+function d_rewrite {
+	echo "" > "${D_FILE}"
+	for key in "${!array[@]}"; do
+		echo "$i"="${array[$1]}" >> "${D_FILE}"
+	done
+}
+
+# d_start - should be called at the beginning of any contate script
+function d_start {
+	if [[ -z "${D_MASTER}" ]]; then
+		D_MASTER=$$
+		D_FILE="$(mktemp)"
+		# TODO: check result?
+	elif [[ ! -f ${D_FILE} ]]; then
+		# TODO: err,  there is no file but master is set? it should have declared it
+		return 1
+		:
+	fi
+	export D_MASTER
+	export D_FILE
+	d_reload
+}
+
+# d_clean - should be set to trap EXIT/FINISH
+function d_clean {
+	if [[ "$$" = "${D_MASTER}" && -f "${D_FILE}" ]]; then
+		rm "${D_FILE}"
+	fi
+}
+
+
+# d_get KEY - gets key or ""
+function d_get {
+	echo -ne "${D_CACHE[$1]}"
+}
+
+# d_set KEY VALUE - sets KEY to VALUE
+function d_set {
+	# TODO: keys cannot contain spaces
+	D_CACHE[$1]="$2"
+	d_rewrite
+}
+
+# d_exists KEY - returns whether or not key exists
+function d_exists {
+	return $([ ${D_CACHE[$1]+_} ])
+}
+
+# d_del KEY - deletes the keyu
+function d_del {
+	unset D_CACHE["$1"]
+	d_rewrite
+}
+
+
+export -f d_start d_clean d_get d_set d_del d_reload
