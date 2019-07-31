@@ -1,18 +1,24 @@
 #!/bin/bash
+#!/bin/bash
 
 # error function checks?
 
 dbg(){
-	if [ "$DEBUG" = true ]; then
+	if ! $DEBUG; then
 		>&2 echo "$1"
 	fi
 }
 
 err(){
-	if [ "$QUIET" = true ]; then
+	if ! $QUIET; then
 		>&2 echo "$1"
 	fi
-	usage
+}
+
+usage(){
+	if ! $QUIET; then
+		>&2 echo "Usage: BLANK"
+	fi
 }
 
 #!/bin/bash

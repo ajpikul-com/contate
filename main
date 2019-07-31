@@ -1,0 +1,136 @@
+#!/bin/bash
+
+d_start
+trap finish d_clean
+
+while [ "$1" ] ; do
+	case "$1" in
+	'-i'|'--input')
+		TARGET="$2"
+		dbg "CMD: $TARGET"
+		if [ -d "$TARGET" ]; then
+			export ROOT_INPUT_DIR="$(realpath "$TARGET")"
+		fi
+		shift 2
+		;;
+	'--clear')
+			unset OUTPUT
+			unset PRINT
+			unset RECURSE
+			unset DEBUG
+			unset QUIET
+			unset COPY_ARG
+			unset EXCLUDE
+		;;
+	'-o'|'--output')
+		export OUTPUT="$2"
+		if  test ! -f "$OUTPUT" && test ! -d "$OUTPUT"; then
+			if [ ! -d "$(dirname "$OUTPUT")" ]; then
+				usage "Output is neither file nor directory"
+			fi
+		fi
+		unset PRINT
+		shift 2
+		;;
+	'-p'|'--print')
+		export PRINT=true
+		unset OUTPUT	
+		shift 1
+		;;
+	'-r'|'--recursive')
+		export RECURSE=true
+		shift 1
+		;;
+	'-d'|'--debug')
+		export DEBUG=true	
+		shift 1
+		;;
+	'-e'|'--exclude')
+		export EXCLUDE="$2"
+		shift 2
+		;;
+	'-q'|'--quiet')
+		export QUIET=true
+		shift 1
+		;;
+	# contate expects to take a target, and then process it, this seems silly
+	'-s'|'--script')
+		SCRIPTDIR="$2"
+		shift 2
+		;;
+	'-v'|'--var')
+		VARIABLE_ARG="$2"
+		VARIABLE_ARG2="$3"
+		if [ -n "$VARIABLE_ARG2" ]; then
+			shift 3	
+		else
+			shift 2
+		fi
+		;;
+	'-c'|'--copy')
+		export COPY_ARG+="$2"
+		shift 2
+		;;
+	*)
+		usage "Usage: What is this that came through your arguments: $1"	
+	;;
+	esac
+done
+
+#add a way to copy all non-ascii files automatically
+if test -z "$PRINT" && test -z "$OUTPUT" && test -z "$VARIABLE_ARG"; then
+	usage "You need to specify file output (-o) or stdout (-p) or variable (-v)"
+elif test -z "$TARGET" && test -z "$SCRIPTDIR" && test -z "$VARIABLE_ARG" ; then
+	usage "You need either an input file (-i) a script to \
+					run (-s) or a variable to un/set (-v)"
+elif [ -f "${TARGET}" ];	then
+	if [ -d "${OUTPUT}" ]; then
+		COPIED_PATH=""
+		if [ -n "$ROOT_INPUT_DIR" ]; then
+			COPIED_PATH="$(sed "s|${ROOT_INPUT_DIR}||" <<< "$(dirname "$(realpath "$TARGET")")" )"/
+			dbg "Copied_path = $COPIED_PATH"
+		fi
+		mkdir -p "${OUTPUT}"/"${COPIED_PATH}"
+		SPECIFIC_OUTPUT="${OUTPUT}"/"${COPIED_PATH}""$(basename "${TARGET}")"
+	else
+		SPECIFIC_OUTPUT="${OUTPUT}"
+	fi
+	dbg "Output=$OUTPUT and Specific Output=$SPECIFIC_OUTPUT or Print=$PRINT"
+	if cmp "$(realpath "${TARGET}")" "$COPY_ARG"; then
+		dbg "cpy $TARGET"$'\n'
+		if test ! "$PRINT" = true; then
+			cp -up "${TARGET}" "${SPECIFIC_OUTPUT}"
+		else
+			cat "${TARGET}"
+		fi
+	elif file "${TARGET}" | grep ASCII -qI &>/dev/null; then
+		contate_file "${TARGET}" "${SPECIFIC_OUTPUT}"
+	elif test "$COPY_ALL_NASCII" = true && test ! "${PRINT}" = true; then
+		dbg "copy because not ascii"
+		cp -up "${TARGET}" "${SPECIFIC_OUTPUT}"	
+	else
+		err "Found non-ascii files to be contated without \
+					a flag to copy all non-ascii files or tried to \
+					print a non-ascii file"
+	fi
+elif test -d "${TARGET}" ; then
+	if test -n "${OUTPUT}" && test ! -d "${OUTPUT}"; then
+		usage "Target is a directory, so output must be a directory or empty w/ --print"
+	elif test ! "${RECURSE}" = true;	then
+		usage "Target is a directory, set -r"
+	fi
+	find "$(realpath "${TARGET}")" -name '*' -not -path '*/\.*' -not -name 'Makefile' -not -name '*.contate' -not -path '*/*contate/*' -type f $EXCLUDE -exec "${0}" -i {} \;
+# not the way to handle variable args
+elif [ -n "$VARIABLE_ARG" ]; then
+	if [ -n "$VARIABLE_ARG2" ]; then
+		setvar "$VARIABLE_ARG" "$VARIABLE_ARG2"
+	else
+		getvar "$VARIABLE_ARG"
+	fi
+elif [ -n "$SCRIPTDIR" ]; then
+	exit "This is not supported yet and I don't know why I thought I needed it"
+fi
+
+if [ "$TMP_OWNER" = true ]; then
+	rm "$TMP_VAR"
+fi

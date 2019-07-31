@@ -3,8 +3,8 @@
 # 
 #
 
-all: 
-	cat util dictionary contator > contate
+all:
+		cat util dictionary contator main > contate
 	
 
 
