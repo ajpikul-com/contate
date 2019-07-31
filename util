@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# error function checks?
+
+dbg(){
+	if [ "$DEBUG" = true ]; then
+		>&2 echo "$1"
+	fi
+}
+
+err(){
+	if [ "$QUIET" = true ]; then
+		>&2 echo "$1"
+	fi
+	usage
+}
+
