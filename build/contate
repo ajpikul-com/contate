@@ -1,0 +1,307 @@
+#!/bin/bash
+# Multiple shebangs are fine :-)
+
+# error function checks?
+
+if [ -z "$CONTATE_DEBUG" ]; then
+	export CONTATE_DEBUG=false
+fi
+
+dbg(){
+	if $CONTATE_DEBUG; then
+		>&2 echo "DEBUG: ${@}"
+	fi
+}
+dbg "defining utils"
+err(){
+	if ! $CONTATE_QUIET; then
+		>&2 echo "ERR: ${@}"
+	fi
+}
+
+usage(){
+	if ! $CONTATE_QUIET; then
+		>&2 echo "USAGE: " # TODO
+	fi
+}
+dbg "util defined"
+
+def(){
+	if [ -z "${!1}" ]; then
+		dbg "Setting default for variable ${1} to ${2}"
+		eval "${1}=${2}"
+	fi
+}
+#!/bin/bash
+dbg "defining dictionary"
+# d_reload - will just load the file into the map. It's called during d_start and probably after running another contate
+function d_reload {
+	dbg "d_reload()"
+	unset D_CACHE
+	declare -A D_CACHE
+	while IFS= read -r line; do
+		D_CACHE["${line%%=*}"]="${line#*=}"
+	done < "${D_FILE}"
+	export D_CACHE
+}
+
+# d_rewrite - will write the map to the file, should be called anytime we modify the cache
+function d_rewrite {
+	dbg "d_rewrite()"
+	echo "" > "${D_FILE}"
+	for key in "${!array[@]}"; do
+		echo "$i"="${array[$1]}" >> "${D_FILE}"
+	done
+}
+
+# d_start - should be called at the beginning of any contate script
+function d_start {
+	dbg "d_start()"
+	if [[ -z "${D_MASTER}" ]]; then
+		D_MASTER=$$
+		D_FILE="$(mktemp)"
+		# TODO: check result?
+	elif [[ ! -f ${D_FILE} ]]; then
+		# TODO: err,  there is no file but master is set? it should have declared it
+		return 1
+		:
+	fi
+	export D_MASTER
+	export D_FILE
+	dbg "D_MASTER: ${D_MASTER}"
+	dbg "D_FILE: ${D_FILE}"
+	d_reload
+}
+
+# d_clean - should be set to trap EXIT/FINISH
+function d_clean {
+	dbg "d_clean()"
+	if [[ "$$" = "${D_MASTER}" && -f "${D_FILE}" ]]; then
+		rm "${D_FILE}"
+	fi
+}
+
+
+# d_get KEY - gets key or ""
+function d_get {
+	dbg "d_get()"
+	echo -ne "${D_CACHE[$1]}"
+}
+
+# d_set KEY VALUE - sets KEY to VALUE
+function d_set {
+	dbg "d_set()"
+	# TODO: keys cannot contain spaces
+	D_CACHE[$1]="$2"
+	d_rewrite
+}
+
+# d_exists KEY - returns whether or not key exists
+function d_exists {
+	dbg "d_exists()"
+	return $([ ${D_CACHE[$1]+_} ])
+}
+
+# d_del KEY - deletes the keyu
+function d_del {
+	dbg "d_del()"
+	unset D_CACHE["$1"]
+	d_rewrite
+}
+
+
+export -f d_start d_clean d_get d_set d_del d_reload
+
+# 1- Target file
+# 2- Output file
+contate_file(){ 
+	dbg "TARGET=$(realpath "$1")"$'\n\n'
+	TARGET="$1"
+	unset CONTATED_FILE
+	if [ "$(grep "$TARGET" -ce "<!-- contate:")" -ne "$(grep "$TARGET" -ce ":contate -->")" ]; then
+		err 'You don'\''t have an equal number of "<!-- contate:" and ":contate --!>"'
+	fi
+	while IFS='' read -r line || [[ -n "$line" ]]; do
+		if [ -n "${TMP_SCRIPT}" ]; then
+			##find and include a suffix
+			if [[ "$(awk '{$1=$1};1' <<< "$line")" == ":contate -->" ]]; then
+				chmod +x "$TMP_SCRIPT"
+				if [ "$IS_C" = true ]; then
+					mv "$TMP_SCRIPT" "$TMP_SCRIPT".c
+					TMP_SCRIPT="$TMP_SCRIPT".c
+				fi
+				SCRIPT_OUTPUT="$($TMP_SCRIPT)"
+				while IFS='' read -r newline; do
+					CONTATED_FILE+="$INDENTATION""$newline"'\n'
+				done <<< "$SCRIPT_OUTPUT"
+				#CONTATED_FILE+="$($TMP_SCRIPT)"'\n'
+				rm "$TMP_SCRIPT"
+				unset TMP_SCRIPT
+				unset INDENTATION
+				unset INDENT_FOUND
+				unset SCRIPT_OUTPUT
+				unset IS_C
+			else
+				if grep -qe "tcc -run" <<< "$line"; then
+					IS_C=true
+				fi
+				if grep -qe '#!/' <<< "$line" && test ! "$INDENT_FOUND" = true; then
+					INDENTATION="$(cut -d '#' -f 1 <<< "$line")"
+					INDENT_FOUND=true
+				fi
+				echo "${line#$INDENTATION}" >> "$TMP_SCRIPT"
+			fi
+		elif [[ "$(awk '{$1=$1};1' <<< "$line")" == "<!-- contate:" ]]; then
+			##find and include a prefix
+			TMP_SCRIPT="$(mktemp)"
+		else
+			CONTATED_FILE+="$line"'\n'
+		fi
+	done < "$TARGET"
+	if [ -n "$2" ];	then
+		echo -ne "${CONTATED_FILE}" > "$2"
+	elif [ "$PRINT" = true ]; then
+		echo -ne "${CONTATED_FILE}"
+	fi
+}
+#!/bin/bash
+
+shopt -s nullglob globstar
+
+# An array of all the variables we've created
+declare -a CONTATE_TEMP_FILE_LIST
+
+# contate_clean is a function to delete those temps and call dictionary's clean too, which celetes the variable temp
+function contate_clean {
+	d_clean
+	for file in "${CONTATE_TEMP_FILE_LIST[@]}"; do
+		dbg "rm'ing $file"
+		rm "$file"
+	done
+}
+dbg "d_start()"
+d_start
+dbg "trap contate_clean()"
+trap contate_clean EXIT
+
+def CONTATE_RECURSE false
+def CONTATE_QUIET false
+def CONTATE_PATTERN '(.*).contate$'
+def CONTATE_DRY false
+export CONTATE_QUIET CONTATE_RECURSE CONTATE_PATTERN CONTATE_OUTPUT CONTATE_DRY
+
+while getopts ":o:p:dqrh" opt; do
+	dbg "Getopts iteration"
+	case "$opt" in
+	d)
+		CONTATE_DRY=true
+		;;
+	o)
+		CONTATE_OUTPUT="${OPTARG}"
+		;;
+	r)
+		CONTATE_RECURSE=true
+		;;
+	p)
+		CONTATE_PATTERN="${OPTARG}"
+		;;
+	q)
+		CONTATE_QUIET=true
+		;;
+	h)
+		CONTATE_QUIET=false
+		usage
+		exit 0
+		;;
+	*)
+		err	"Unkown opt: $OPTARG"
+		usage 
+		exit 1
+		;;
+	esac
+done
+
+dbg "All arguments passed:: ${*}"	
+
+shift "$(( OPTIND - 1 ))"
+
+dbg "CONTATE_DRY=${CONTATE_DRY}"
+dbg "CONTATE_OUTPUT=${CONTATE_OUTPUT}"
+dbg "CONTATE_RECURSE=${CONTATE_RECURSE}"
+dbg "CONTATE_DEBUG=${CONTATE_DEBUG}"
+dbg "CONTATE_QUIET=${CONTATE_QUIET}"
+dbg "CONTATE_PATTERN=${CONTATE_PATTERN}"
+dbg "CONTATE FILES: ${*}"
+
+if ${CONTATE_QUIET} && ${CONTATE_DEBUG}; then
+	err "You cannot set both quiet and debug"
+	exit 1
+fi
+
+if [[ -d "${CONTATE_OUTPUT}" ]]; then
+	if [[ -w "${CONTATE_OUTPUT}" ]]; then
+		dbg "CONTATE_OUTPUT is a directory"
+		CONTATE_OUTPUT="$(realpath "${CONTATE_OUTPUT}")"
+	else
+		err "Can't write to ${CONTATE_OUTPUT}"
+		exit 1
+	fi
+elif [ -z "${CONTATE_OUTPUT}" ] || [ "${CONTATE_OUTPUT}" = "/dev/stdout" ]; then
+	dbg "CONTATE_OUTPUT not set, so stdout"
+	CONTATE_OUTPUT="/dev/stdout"
+else
+	err "Contate cannot currently create directories or use a custom naming scheme for files beyond -p"u
+	usage
+	exit
+	# So below isn't used
+	CONTATE_OUTPUT="$(realpath ./)/${CONTATE_OUTPUT}"
+	if [ "$#" != "1" ]; then
+		err "You cannot pass more than one input if you are setting filename"
+		err "If you meant to create a directory, you must do so manually"
+		usage
+		exit 1
+	fi
+	if ! touch ${CONTATE_OUTPUT}; then 
+		err "Could not create/modify the filename specified"
+		usage
+		exit 1
+	fi
+fi
+dbg "CONTATE_OUTPUT reset to: ${CONTATE_OUTPUT}"
+
+# can we write to the output directory if there is one?
+# if it's an output file, does it exist and do we have write permissions? (we should have tried to touch it)
+for target; do
+	if [[ -d "${target}" ]] && ! $CONTATE_RECURSE; then
+		err "${target} is a directory but didn't specify -r"
+		usage
+		exit 1
+	fi
+done
+for target; do
+	if [[ -d "${target}" && -x "${target}" && -r "${target}" ]]; then
+		dbg "TARGET DIRECTORY: ${target}"
+		${0} ${target}/*
+	elif [[ -f "${target}" && -r "${target}" ]]; then
+		dbg "TARGET FILE: ${target}"
+		if [[ "${target}" =~ ${CONTATE_PATTERN} ]]; then
+			if [ "${CONTATE_OUTPUT}" != "/dev/stdout" ]; then
+				if [ -n "${BASH_REMATCH[1]}" ]; then
+					OUTPUT_SUBPATH="${BASH_REMATCH[1]}"
+				else
+					OUTPUT_SUBPATH="${target}"
+				fi
+				if ! $CONTATE_RECURSE; then
+					OUTPUT_SUBPATH=$(basename ${OUTPUT_SUBPATH})
+				fi
+				CONTATE_OUTPUT="${CONTATE_OUTPUT}/${OUTPUT_SUBPATH}"
+				dbg "Is a contate file! it's output is: ${CONTATE_OUTPUT}"
+			fi
+			if ! $CONTATE_DRY; then 
+				contate_file "$(realpath ${target})" "${CONTATE_OUTPUT}" #contate_file will have to append the target if not stdout
+			fi
+		fi
+	fi
+done
+
+# TODO: it's currently copuying the whole path, which you'd want it to do only if recursive

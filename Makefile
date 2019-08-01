@@ -4,7 +4,9 @@
 #
 
 all:
-		cat util dictionary contator main > contate
+		-mkdir -p build/
+		cat util dictionary contator main > build/contate
+		chmod +x build/contate
 	
 
 
