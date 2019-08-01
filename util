@@ -1,23 +1,36 @@
 #!/bin/bash
 # Multiple shebangs are fine :-)
 
+#UTIL
+
 # error function checks?
 
+if [ -z "$CONTATE_DEBUG" ]; then
+	export CONTATE_DEBUG=false
+fi
+
 dbg(){
-	if ! $DEBUG; then
-		>&2 echo "$1"
+	if $CONTATE_DEBUG; then
+		>&2 echo "DEBUG: ${@}"
 	fi
 }
-
+dbg "defining utils"
 err(){
-	if ! $QUIET; then
-		>&2 echo "$1"
+	if ! $CONTATE_QUIET; then
+		>&2 echo "ERR: ${@}"
 	fi
 }
 
 usage(){
-	if ! $QUIET; then
-		>&2 echo "Usage: BLANK"
+	if ! $CONTATE_QUIET; then
+		>&2 echo "USAGE: " # TODO
 	fi
 }
+dbg "util defined"
 
+def(){
+	if [ -z "${!1}" ]; then
+		dbg "Setting default for variable ${1} to ${2}"
+		eval "${1}=${2}"
+	fi
+}
