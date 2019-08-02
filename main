@@ -107,12 +107,13 @@ done
 # RECURSE THROUGH INPUTS
 for target; do
 	if [ "$CONTATE_MASTER" = "$$" ]; then
-		export REMOVEABLE_PATH="$(dirname $target)"/
+		export REMOVEABLE_PATH="$(dirname $(realpath $target))"/
 	fi
 	if [[ -d "${target}" && -x "${target}" && -r "${target}" ]]; then
 		dbg "TARGET DIRECTORY: ${target}"
 		${0} ${target}/*
 	elif [[ -f "${target}" && -r "${target}" ]]; then
+		target="$(realpath $target)"
 		dbg "TARGET FILE: ${target}"
 		if [[ "${target}" =~ ${CONTATE_PATTERN} ]]; then
 			if [ "${CONTATE_OUTPUT}" != "/dev/stdout" ]; then
@@ -125,7 +126,7 @@ for target; do
 				dbg "Is a contate file! it's output is: ${CONTATE_OUTPUT}"
 			fi
 			if ! $CONTATE_DRY; then 
-				contate_file "$(realpath ${target})" "${CONTATE_OUTPUT}" 
+				contate_file "${target}" "${CONTATE_OUTPUT}" 
 			fi
 		fi
 	fi

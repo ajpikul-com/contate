@@ -1,6 +1,6 @@
 
-# 1- Target file
-# 2- Output file
+# 1- Target file - realpath is fine, are we being passed that? it's fine to set it
+# 2- Output file- this needs to be a realpath + any directories that have been or need to be made
 contate_file(){ 
 	dbg "TARGET=$(realpath "$1")"$'\n\n'
 	TARGET="$1"
