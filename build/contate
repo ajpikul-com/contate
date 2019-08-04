@@ -1,6 +1,8 @@
 #!/bin/bash
 # Multiple shebangs are fine :-)
 
+#UTIL
+
 # error function checks?
 
 if [ -z "$CONTATE_DEBUG" ]; then
@@ -33,6 +35,9 @@ def(){
 	fi
 }
 #!/bin/bash
+
+# DICTIONARY
+
 dbg "defining dictionary"
 # d_reload - will just load the file into the map. It's called during d_start and probably after running another contate
 function d_reload {
@@ -112,8 +117,8 @@ function d_del {
 
 export -f d_start d_clean d_get d_set d_del d_reload
 
-# 1- Target file
-# 2- Output file
+# 1- Target file - realpath is fine, are we being passed that? it's fine to set it
+# 2- Output file- this needs to be a realpath + any directories that have been or need to be made
 contate_file(){ 
 	dbg "TARGET=$(realpath "$1")"$'\n\n'
 	TARGET="$1"
@@ -166,6 +171,8 @@ contate_file(){
 }
 #!/bin/bash
 
+# BASIC INITIALIZATIONS
+
 shopt -s nullglob globstar
 
 # An array of all the variables we've created
@@ -183,6 +190,8 @@ dbg "d_start()"
 d_start
 dbg "trap contate_clean()"
 trap contate_clean EXIT
+
+# SET VARIABLES
 
 def CONTATE_RECURSE false
 def CONTATE_QUIET false
@@ -233,6 +242,8 @@ dbg "CONTATE_QUIET=${CONTATE_QUIET}"
 dbg "CONTATE_PATTERN=${CONTATE_PATTERN}"
 dbg "CONTATE FILES: ${*}"
 
+# VALIDATE FLAGS
+
 if ${CONTATE_QUIET} && ${CONTATE_DEBUG}; then
 	err "You cannot set both quiet and debug"
 	exit 1
@@ -250,27 +261,12 @@ elif [ -z "${CONTATE_OUTPUT}" ] || [ "${CONTATE_OUTPUT}" = "/dev/stdout" ]; then
 	dbg "CONTATE_OUTPUT not set, so stdout"
 	CONTATE_OUTPUT="/dev/stdout"
 else
-	err "Contate cannot currently create directories or use a custom naming scheme for files beyond -p"u
+	err "Contate cannot currently create directories or use a custom naming scheme for files beyond -p"
 	usage
 	exit
-	# So below isn't used
-	CONTATE_OUTPUT="$(realpath ./)/${CONTATE_OUTPUT}"
-	if [ "$#" != "1" ]; then
-		err "You cannot pass more than one input if you are setting filename"
-		err "If you meant to create a directory, you must do so manually"
-		usage
-		exit 1
-	fi
-	if ! touch ${CONTATE_OUTPUT}; then 
-		err "Could not create/modify the filename specified"
-		usage
-		exit 1
-	fi
 fi
 dbg "CONTATE_OUTPUT reset to: ${CONTATE_OUTPUT}"
 
-# can we write to the output directory if there is one?
-# if it's an output file, does it exist and do we have write permissions? (we should have tried to touch it)
 for target; do
 	if [[ -d "${target}" ]] && ! $CONTATE_RECURSE; then
 		err "${target} is a directory but didn't specify -r"
@@ -278,30 +274,31 @@ for target; do
 		exit 1
 	fi
 done
+
+# RECURSE THROUGH INPUTS
 for target; do
+	if [ "$CONTATE_MASTER" = "$$" ]; then
+		export REMOVEABLE_PATH="$(dirname $(realpath $target))"/
+	fi
 	if [[ -d "${target}" && -x "${target}" && -r "${target}" ]]; then
 		dbg "TARGET DIRECTORY: ${target}"
 		${0} ${target}/*
 	elif [[ -f "${target}" && -r "${target}" ]]; then
+		target="$(realpath $target)"
 		dbg "TARGET FILE: ${target}"
 		if [[ "${target}" =~ ${CONTATE_PATTERN} ]]; then
 			if [ "${CONTATE_OUTPUT}" != "/dev/stdout" ]; then
 				if [ -n "${BASH_REMATCH[1]}" ]; then
-					OUTPUT_SUBPATH="${BASH_REMATCH[1]}"
+					OUTPUT_SUBPATH="${BASH_REMATCH[1]#${REMOVABLE_PATH}}"
 				else
-					OUTPUT_SUBPATH="${target}"
-				fi
-				if ! $CONTATE_RECURSE; then
-					OUTPUT_SUBPATH=$(basename ${OUTPUT_SUBPATH})
+					OUTPUT_SUBPATH="${target#${REMOVABLE_PATH}}"
 				fi
 				CONTATE_OUTPUT="${CONTATE_OUTPUT}/${OUTPUT_SUBPATH}"
 				dbg "Is a contate file! it's output is: ${CONTATE_OUTPUT}"
 			fi
 			if ! $CONTATE_DRY; then 
-				contate_file "$(realpath ${target})" "${CONTATE_OUTPUT}" #contate_file will have to append the target if not stdout
+				contate_file "${target}" "${CONTATE_OUTPUT}" 
 			fi
 		fi
 	fi
 done
-
-# TODO: it's currently copuying the whole path, which you'd want it to do only if recursive
