@@ -1,7 +1,9 @@
 function c_execute {
+	dbg "Running $TMP_SCRIPT"
 	SCRIPT_OUTPUT=""
 	chmod +x "$TMP_SCRIPT"
 	if [ "$IS_C" = true ]; then
+		dbg "It is C"
 		mv "$TMP_SCRIPT" "$TMP_SCRIPT".c
 		TMP_SCRIPT="$TMP_SCRIPT".c
 	fi
@@ -19,6 +21,7 @@ def CONTATE_END_REGEX '^(?:\s*)!#(.*)$'
 # 2- Output file- this needs to be a realpath + any directories that have been or need to be made
 contate_file(){ 
 	dbg "TARGET=$1"
+	dbg "OUTPUT=$2"
 	TARGET="$1"
 	OUTPUT="$1"
 	CONTATED_FILE=""
@@ -28,6 +31,7 @@ contate_file(){
 		if [ -n "${TMP_SCRIPT}" ]; then
 			# END BLOCK
 			if [[ "$line" =~ $CONTATE_END_REGEX ]]; then
+				dbg "END SCRIPT"
 				c_execute # TODO what do with output?
 				CONTATED_FILE="${CONTATED_FILE%'\n'}"
 				CONTATED_FILE+="${BASH_REMATCH[1]}"'\n'
@@ -37,6 +41,7 @@ contate_file(){
 			fi
 		# Start Contate Block
 		elif [[ "$line" =~ $CONTATE_START_REGEX ]]; then
+			dbg "START SCRIPT"
 			if grep -qe "tcc -run" <<< "$line"; then
 				IS_C=true
 			fi
@@ -53,6 +58,7 @@ contate_file(){
 	done < "$TARGET"
 	if [ "$TMP_SCRIPT" != "" ]; then
 		echo -ne "${CONTATED_FILE}" > "$2"
+		dbg "WROTE SCRIPT"
 	else
 		err "Unexpected EOF in ${TARGET}"
 		exit 1
