@@ -9,6 +9,21 @@ if [ -z "$CONTATE_DEBUG" ]; then
 	export CONTATE_DEBUG=false
 fi
 
+# must will fail the last exit code isn't true
+must(){
+	if ! $?; then
+		err $1
+		exit 1
+	fi
+}
+
+# should will dbg if the last exit code isn't true
+should(){
+	if ! $?; then
+		dbg $1
+	fi
+}
+
 dbg(){
 	if $CONTATE_DEBUG; then
 		>&2 echo "DEBUG: ${@}"

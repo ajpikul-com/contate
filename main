@@ -13,6 +13,7 @@ function contate_clean {
 	for file in "${CONTATE_TEMP_FILE_LIST[@]}"; do
 		dbg "rm'ing $file"
 		rm "$file"
+		should "$file didn't delete properly"
 	done
 }
 dbg "d_start()"
@@ -112,6 +113,7 @@ for target; do
 	if [[ -d "${target}" && -x "${target}" && -r "${target}" ]]; then
 		dbg "TARGET DIRECTORY: ${target}"
 		${0} ${target}/*
+		must "Contate failed on one of ${target}/*"
 	elif [[ -f "${target}" && -r "${target}" ]]; then
 		target="$(realpath $target)"
 		dbg "TARGET FILE: ${target}"
@@ -127,6 +129,8 @@ for target; do
 			fi
 			if ! $CONTATE_DRY; then 
 				contate_file "${target}" "${CONTATE_OUTPUT}" 
+				must "Contate file failed somewhere on ${target} to ${CONTATE_OUTPUT}"
+				d_reload
 			fi
 		fi
 	fi
