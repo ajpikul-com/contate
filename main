@@ -118,7 +118,7 @@ for target; do
 	if [[ -d "${target}" && -x "${target}" && -r "${target}" ]]; then
 		dbg "TARGET DIRECTORY: ${target}"
 		${0} $(realpath ${target})/*
-		must $? "Contate failed on one of ${target}/*"
+		must $? "Contate failed on one of $(realpath ${target})/*"
 	elif [[ -f "${target}" && -r "${target}" ]]; then
 		target="$(realpath $target)"
 		dbg "TARGET FILE: ${target}"

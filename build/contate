@@ -10,6 +10,7 @@ if [ -z "$CONTATE_DEBUG" ]; then
 fi
 
 if $CONTATE_DEBUG; then
+	# Don't think tput works unless we're piping directly to console
 	export CoC="$(tput bold)c$(tput sgr0)"
 	export CoS="$(tput bold)s$(tput sgr0)"
 	export CoE="$(tput bold)e$(tput sgr0)"
@@ -173,7 +174,7 @@ function c_execute {
 
 [ -z "${CONTATE_START_REGEX}" ] && CONTATE_START_REGEX='^(.*)#!(/.+)$'
 [ -z "${CONTATE_END_REGEX}" ] && CONTATE_END_REGEX='^([[:space:]]*)!#(.*)$'
-[ -z "${CONTATE_INLINE}" ] && CONTATE_INLINE='^.*#!($[{|\(].+[}|\)])!#.*$'
+[ -z "${CONTATE_INLINE}" ] && CONTATE_INLINE='^.*#!\$\((.+)\)!#.*$'
 # 1- Target file - realpath is fine, are we being passed that? it's fine to set it
 # 2- Output file- this needs to be a realpath + any directories that have been or need to be made
 contate_file(){ 
@@ -218,8 +219,9 @@ contate_file(){
 			set -e
 			INLINE_OUTPUT="$(eval "${BASH_REMATCH[1]}")"
 			must $? "${BASH_REMATCH[1]} failed to be eval'ed"
+			dbg "INLINE OUTPUT: $INLINE_OUTPUT"
 			set +e
-			echo "${CoI}${line/"#!${BASH_REMATCH[1]}!#"/$INLINE_OUTPUT}" >> "$OUTPUT"
+			echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}" >> "$OUTPUT"
 		else
 			echo "${CoC}$line" >> "$OUTPUT"
 		fi
@@ -351,7 +353,7 @@ for target; do
 	if [[ -d "${target}" && -x "${target}" && -r "${target}" ]]; then
 		dbg "TARGET DIRECTORY: ${target}"
 		${0} $(realpath ${target})/*
-		must $? "Contate failed on one of ${target}/*"
+		must $? "Contate failed on one of $(realpath ${target})/*"
 	elif [[ -f "${target}" && -r "${target}" ]]; then
 		target="$(realpath $target)"
 		dbg "TARGET FILE: ${target}"
