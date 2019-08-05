@@ -61,32 +61,40 @@ export -f dbg should must err
 #!/bin/bash
 
 # DICTIONARY
-
 dbg "defining dictionary"
-# d_reload - will just load the file into the map. It's called during d_start and probably after running another contate
-function d_reload {
-	dbg "d_reload()"
-	unset D_CACHE
-	declare -A D_CACHE
+# d_reload_from_file - will just load the file into the map. It's called during d_start and probably after running another contate
+function d_reload_from_file {
+	dbg "d_reload_from_file()"
 	while IFS= read -r line; do
-		dbg "Line: $line; Key: ${line%%=*} and value: ${line#*=}"
-		D_CACHE["${line%%=*}"]="${line#*=}"
+		unset TEMP_HASH
+		if [ -z "$TEMP_HASH" ]; then
+			TEMP_HASH="$line"
+			if [ "$TEMP_HASH" = "$D_HASH" ]; then
+				dbg "CACHE HIT"
+				return
+			fi
+		export	D_HASH="${TEMP_HASH}"
+		else
+			unset D_CACHE
+			export D_CACHE
+			dbg "Line: $line;"
+			D_CACHE+="${line} "
+			D_CACHE="${D_CACHE% }"
+		fi
 	done < "${D_FILE}"
-	dbg "array keys: ${!D_CACHE[@]}"
-	dbg "array values: ${D_CACHE[@]}"
-	dbg "d_reload: declare -p D_CACHE: $(declare -p D_CACHE)"
+	dbg "D_CACHE: ${D_CACHE}"
 }
 
-# d_rewrite - will write the map to the file, should be called anytime we modify the cache
-function d_rewrite {
-	dbg "d_rewrite()"
+# d_rewrite_to_file - will write the map to the file, should be called anytime we modify the cache
+function d_rewrite_to_file {
+	dbg "d_rewrite_to_file()"
 	echo -n "" > "${D_FILE}"
-	dbg "array keys: ${!D_CACHE[@]}"
-	dbg "array values: ${D_CACHE[@]}"
-	for key in "${!D_CACHE[@]}"; do
-		dbg "writing $key"
-		echo "$key"="${D_CACHE[$key]}" >> "${D_FILE}"
+	for key in $D_CACHE; do
+		echo "$key" >> "${D_FILE}"
 	done
+	dbg "Wrote file:$(cat ${D_FILE})"
+	D_HASH="$(md5sum "${D_FILE}")"
+	sed -i "1i$D_HASH" ${D_FILE}
 	dbg "Wrote file:$(cat ${D_FILE})"
 }
 
@@ -94,6 +102,7 @@ function d_rewrite {
 function d_start {
 	dbg "d_start()"
 	if [[ -z "${D_MASTER}" ]]; then
+		D_HASH=""
 		D_MASTER=$$
 		D_FILE="$(mktemp)"
 		# TODO: check result?
@@ -104,9 +113,11 @@ function d_start {
 	fi
 	export D_MASTER
 	export D_FILE
+	export D_HASH
 	dbg "D_MASTER: ${D_MASTER}"
 	dbg "D_FILE: ${D_FILE}"
-	d_reload
+	d_reload_from_file
+	dbg "D_CACHE: ${D_CACHE}"
 }
 
 # d_clean - should be set to trap EXIT/FINISH
@@ -120,42 +131,115 @@ function d_clean {
 
 # d_get KEY - gets key or ""
 function d_get {
-	# TODO: check and reload D_CACHE
 	dbg "d_get($1)"
-	dbg "Got: ${D_CACHE[$1]}"
-	echo -ne "${D_CACHE[$1]}"
+	d_reload_from_file
+	unset D_CACHE_MAP
+	declare -A D_CACHE_MAP
+	unset TEMPKEY
+	dbg "D_CACHE: ${D_CACHE}"
+	for thing in $D_CACHE; do
+		if [ -z "${TEMPKEY}" ]; then
+			TEMPKEY="$thing"
+			dbg "Get, Key: $thing"
+		else
+			D_CACHE_MAP[$TEMPKEY]="$thing"
+			dbg "Get, Val: $thing"
+			unset TEMPKEY
+		fi
+	done
+	# write map
+	dbg "Keys:${!D_CACHE_MAP[*]}"
+	dbg "Vals:${D_CACHE_MAP[*]}"
+	dbg "Got: $(base64 -d <<< "${D_CACHE_MAP["$(base64 <<< "$1")"]}")"
+	echo -n  "$(base64 -d <<< "${D_CACHE_MAP["$(base64 <<< "$1")"]}")"
 }
 
 # d_set KEY VALUE - sets KEY to VALUE
 function d_set {
 	dbg "d_set($1, $2)"
+	d_reload_from_file
 	# TODO: keys cannot contain spaces
-	D_CACHE["$1"]="$2"
-	dbg "Declare -p D_CACHE $(declare -p D_CACHE)"
-	dbg "Ran: D_CACHE[\"$1\"]=\"$2\""
-	dbg "array keys: ${!D_CACHE[*]}"
-	dbg "array values: ${D_CACHE[*]}"
-	dbg "array value for key $1: ${D_CACHE[$1]}"
-	d_rewrite
-	dbg "array keys: ${!D_CACHE[*]}"
-	dbg "array values: ${D_CACHE[*]}"
+	unset D_CACHE_MAP
+	declare -A D_CACHE_MAP
+	unset TEMPKEY
+	dbg "D_CACHE: ${D_CACHE}"
+	for thing in $D_CACHE; do
+		if [ -z "${TEMPKEY}" ]; then
+			TEMPKEY="$thing"
+		else
+			D_CACHE_MAP[$TEMPKEY]="$thing"
+			unset TEMPKEY
+		fi
+	done
+	dbg "Keys:${!D_CACHE_MAP[*]}"
+	dbg "Vals:${D_CACHE_MAP[*]}"
+	D_CACHE_MAP["$(base64 <<< "$1")"]="$(base64 <<< "$2")"
+	dbg "Keys:${!D_CACHE_MAP[*]}"
+	dbg "Vals:${D_CACHE_MAP[*]}"
+	unset D_CACHE
+	export D_CACHE 
+	for key in "${!D_CACHE_MAP[@]}"; do
+		D_CACHE+="${key} ${D_CACHE_MAP["$key"]} "
+	done
+	D_CACHE="${D_CACHE% }"
+	dbg "D_CACHE: ${D_CACHE}"
+	d_rewrite_to_file
 }
 
 # d_exists KEY - returns whether or not key exists
 function d_exists {
 	dbg "d_exists($1)"
-	return $([ ${D_CACHE[$1]+_} ])
+	d_reload_from_file
+	unset D_CACHE_MAP
+	declare -A D_CACHE_MAP
+	unset TEMPKEY
+	dbg "D_CACHE: ${D_CACHE}"
+	for thing in $D_CACHE; do
+		if [ -z "${TEMPKEY}" ]; then
+			TEMPKEY="$thing"
+		else
+			D_CACHE_MAP[$TEMPKEY]="$thing"
+			unset TEMPKEY
+		fi
+	done
+	dbg "Keys:${!D_CACHE_MAP[*]}"
+	dbg "Vals:${D_CACHE_MAP[*]}"
+	return $([ ${D_CACHE_MAP["$(base64 <<< "$1")"]+_} ])
 }
 
 # d_del KEY - deletes the keyu
 function d_del {
 	dbg "d_del($1)"
-	unset D_CACHE["$1"]
-	d_rewrite
+	d_reload_from_file
+	# TODO: keys cannot contain spaces
+	unset D_CACHE_MAP
+	declare -A D_CACHE_MAP
+	unset TEMPKEY
+	dbg "D_CACHE: ${D_CACHE}"
+	for thing in $D_CACHE; do
+		if [ -z "${TEMPKEY}" ]; then
+			TEMPKEY="$thing"
+		else
+			D_CACHE_MAP[$TEMPKEY]="$thing"
+			unset TEMPKEY
+		fi
+	done
+	dbg "Keys:${!D_CACHE_MAP[*]}"
+	dbg "Vals:${D_CACHE_MAP[*]}"
+	unset D_CACHE_MAP["$(base64 <<< "$1")"]
+	unset D_CACHE
+	export D_CACHE #TODO is this everywhere
+	for key in "${!D_CACHE_MAP[@]}"; do
+		D_CACHE+="${key} ${D_CACHE_MAP["$key"]} "
+	done
+	D_CACHE="${D_CACHE% }"
+	d_rewrite_to_file
 }
 
 
-export -f d_start d_clean d_get d_set d_del d_reload d_rewrite
+export -f d_start d_clean d_get d_set d_del d_reload_from_file d_rewrite_to_file
+#!/bin/bash
+
 function c_execute {
 	dbg "Running $TMP_SCRIPT"
 	SCRIPT_OUTPUT=""
@@ -205,16 +289,13 @@ contate_file(){
 	unset TMP_SCRIPT
 	while IFS='' read -r line || [[ -n "$line" ]]; do # if the EOF comes with no NL, second term helps
 		# IN SCRIPT
-		[[ "$line" =~ $CONTATE_START_REGEX ]] && dbg "(NOTE) Start: '$line' with '${BASH_REMATCH[1]}'"
-		[[ "$line" =~ $CONTATE_END_REGEX ]] && dbg "(NOTE) End: '$line' with '${BASH_REMATCH[2]}'"
-		[[ "$line" =~ $CONTATE_INLINE ]] && dbg "(NOTE) Inline:'$line' with '${BASH_REMATCH[1]}'"
 		if [ -n "${TMP_SCRIPT}" ]; then
 			# END BLOCK..
 			if [[ "$line" =~ $CONTATE_END_REGEX ]]; then
 				dbg "END SCRIP on '$line' with rematch '${BASH_REMATCH[2]}'"
 				c_execute # TODO what do with output?
 				echo "${CoE}${BASH_REMATCH[2]}" >> ${OUTPUT}
-				rm "TMP_SCRIPT"
+				rm "$TMP_SCRIPT"
 				unset TMP_SCRIPT
 			else
 				dbg "Process line '$line'"
@@ -273,7 +354,6 @@ function contate_clean {
 }
 dbg "top-ish of main"
 d_start
-dbg "main: declare -p D_CACHE $(declare -p D_CACHE)"
 dbg "trap contate_clean()"
 trap contate_clean EXIT
 
@@ -398,7 +478,6 @@ for target; do
 			if ! $CONTATE_DRY; then 
 				contate_file "${target}" "${SPECIFIC_OUTPUT}" 
 				must $? "Contate file failed somewhere on ${target} to ${SPECIFIC_OUTPUT}"
-				d_reload
 			fi
 		fi
 	fi
