@@ -1,3 +1,5 @@
+#!/bin/bash
+
 function c_execute {
 	dbg "Running $TMP_SCRIPT"
 	SCRIPT_OUTPUT=""
@@ -56,7 +58,7 @@ contate_file(){
 				dbg "END SCRIP on '$line' with rematch '${BASH_REMATCH[2]}'"
 				c_execute # TODO what do with output?
 				echo "${CoE}${BASH_REMATCH[2]}" >> ${OUTPUT}
-				rm "TMP_SCRIPT"
+				rm "$TMP_SCRIPT"
 				unset TMP_SCRIPT
 			else
 				dbg "Process line '$line'"
