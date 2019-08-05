@@ -42,10 +42,3 @@ usage(){
 	fi
 }
 dbg "util defined"
-
-def(){
-	if [ -z "${!1}" ]; then
-		dbg "Setting default for variable ${1} to ${2}"
-		eval "${1}=${2}"
-	fi
-}

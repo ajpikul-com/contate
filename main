@@ -23,10 +23,10 @@ trap contate_clean EXIT
 
 # SET VARIABLES
 
-def CONTATE_RECURSE false
-def CONTATE_QUIET false
-def CONTATE_PATTERN '(.*).contate$'
-def CONTATE_DRY false
+[ -z "${CONTATE_RECURSE}" ] && CONTATE_RECURSE=false
+[ -z "${CONTATE_QUIET}" ] && CONTATE_QUIET=false
+[ -z "${CONTATE_PATTERN}" ] && CONTATE_PATTERN='(.*).contate$'
+[ -z "${CONTATE_DRY}" ] && CONTATE_DRY=false
 export CONTATE_QUIET CONTATE_RECURSE CONTATE_PATTERN CONTATE_OUTPUT CONTATE_DRY
 
 while getopts ":o:p:dqrh" opt; do

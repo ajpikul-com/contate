@@ -18,9 +18,9 @@ function c_execute {
 }
 
 
-def CONTATE_START_REGEX '^(.*)#!(?:/.+)+$'
-def CONTATE_END_REGEX '^(?:\s*)!#(.*)$'
-def CONTATE_INLINE '^.*#!($[{|\(].+[}|\)])!#.*$'
+[ -z "${CONTATE_STATE_REGEX}" ] && CONTATE_START_REGEX='^(.*)#!(?:/.+)+$'
+[ -z "${CONTATE_END_REGEX}" ] && CONTATE_END_REGEX='^(?:\s*)!#(.*)$'
+[ -z "${CONTATE_INLINE}" ] && CONTATE_INLINE='^.*#!($[{|\(].+[}|\)])!#.*$'
 # 1- Target file - realpath is fine, are we being passed that? it's fine to set it
 # 2- Output file- this needs to be a realpath + any directories that have been or need to be made
 contate_file(){ 
