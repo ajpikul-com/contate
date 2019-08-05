@@ -9,26 +9,38 @@ if [ -z "$CONTATE_DEBUG" ]; then
 	export CONTATE_DEBUG=false
 fi
 
-# must will fail the last exit code isn't true
-must(){
-	if [ $? -ne 0 ]; then
-		err $1
-		exit 1
-	fi
-}
-
-# should will dbg if the last exit code isn't true
-should(){
-	if ! $?; then
-		dbg $1
-	fi
-}
+if $CONTATE_DEBUG; then
+	export CoC="$(tput bold)c$(tput sgr0)"
+	export CoS="$(tput bold)s$(tput sgr0)"
+	export CoE="$(tput bold)e$(tput sgr0)"
+	export CoP="$(tput bold)p$(tput sgr0)"
+	export CoI="$(tput bold)i$(tput sgr0)"
+else
+	unset CoC CoS CoE CoP CoI
+fi
 
 dbg(){
 	if $CONTATE_DEBUG; then
 		>&2 echo "DEBUG: ${@}"
 	fi
 }
+
+# must will fail the last exit code isn't true
+must(){
+	dbg "must passed $1 for $2"
+	if [ $1 -ne 0 ]; then
+		err $2
+		exit 1
+	fi
+}
+
+# should will dbg if the last exit code isn't true
+should(){
+	if [ $1 -ne 0 ]; then
+		dbg $2
+	fi
+}
+
 dbg "defining utils"
 err(){
 	if ! $CONTATE_QUIET; then
@@ -128,24 +140,39 @@ function c_execute {
 	dbg "Running $TMP_SCRIPT"
 	SCRIPT_OUTPUT=""
 	chmod +x "$TMP_SCRIPT"
-	must "Failed to set +x on $TMP_SCRIPT"
+	must $? "Failed to set +x on $TMP_SCRIPT"
 	if [ "$IS_C" = true ]; then
 		dbg "It is C"
 		mv "$TMP_SCRIPT" "$TMP_SCRIPT".c
-		must "Couldn't rename $TMP_SCRIPT for C"
+		must $? "Couldn't rename $TMP_SCRIPT for C"
 		TMP_SCRIPT="$TMP_SCRIPT".c
 	fi
+	set -e
 	SCRIPT_OUTPUT="$($TMP_SCRIPT)"
-	must "Script output failed"
+	must $? "Script output failed"
+	TOTAL_LINES=$(echo "$SCRIPT_OUTPUT"| wc -l)
+	i=0
+	set +e
 	while IFS='' read -r scriptoutput2; do
-		CONTATED_FILE+="$INDENTATION""$scriptoutput2"'\n'
+		dbg "Line Number:$i / $TOTAL_LINES"
+		i=$(( i + 1 ))
+		if [ $i -gt 1 ]; then
+			echo -n "${CoP}${INDENTATION}${scriptoutput2}" >> "$OUTPUT"
+		else
+			echo -n "${CoP}${scriptoutput2}" >> "$OUTPUT"
+		fi
+		if [ $i -lt $TOTAL_LINES ]; then
+			echo "" >> "$OUTPUT"
+		else
+			dbg "Was last line"
+		fi
 	done <<< "$SCRIPT_OUTPUT"
 	unset IS_C
 }
 
 
-[ -z "${CONTATE_STATE_REGEX}" ] && CONTATE_START_REGEX='^(.*)#!(?:/.+)+$'
-[ -z "${CONTATE_END_REGEX}" ] && CONTATE_END_REGEX='^(?:\s*)!#(.*)$'
+[ -z "${CONTATE_START_REGEX}" ] && CONTATE_START_REGEX='^(.*)#!(/.+)$'
+[ -z "${CONTATE_END_REGEX}" ] && CONTATE_END_REGEX='^([[:space:]]*)!#(.*)$'
 [ -z "${CONTATE_INLINE}" ] && CONTATE_INLINE='^.*#!($[{|\(].+[}|\)])!#.*$'
 # 1- Target file - realpath is fine, are we being passed that? it's fine to set it
 # 2- Output file- this needs to be a realpath + any directories that have been or need to be made
@@ -153,47 +180,51 @@ contate_file(){
 	dbg "TARGET=$1"
 	dbg "OUTPUT=$2"
 	TARGET="$1"
-	OUTPUT="$1"
-	CONTATED_FILE=""
+	OUTPUT="$2"
 	IS_C=false
 	unset TMP_SCRIPT
 	while IFS='' read -r line || [[ -n "$line" ]]; do # if the EOF comes with no NL, second term helps
 		# IN SCRIPT
+		[[ "$line" =~ $CONTATE_START_REGEX ]] && dbg "(NOTE) Start: '$line' with '${BASH_REMATCH[1]}'"
+		[[ "$line" =~ $CONTATE_END_REGEX ]] && dbg "(NOTE) End: '$line' with '${BASH_REMATCH[2]}'"
+		[[ "$line" =~ $CONTATE_INLINE ]] && dbg "(NOTE) Inline:'$line' with '${BASH_REMATCH[1]}'"
 		if [ -n "${TMP_SCRIPT}" ]; then
-			# END BLOCK
+			# END BLOCK..
 			if [[ "$line" =~ $CONTATE_END_REGEX ]]; then
-				dbg "END SCRIPT"
+				dbg "END SCRIP on '$line' with rematch '${BASH_REMATCH[2]}'"
 				c_execute # TODO what do with output?
-				CONTATED_FILE="${CONTATED_FILE%'\n'}"
-				CONTATED_FILE+="${BASH_REMATCH[1]}"'\n'
+				echo "${CoE}${BASH_REMATCH[2]}" >> ${OUTPUT}
 				unset TMP_SCRIPT
 			else
+				dbg "Process line '$line'"
 				echo "${line#$INDENTATION}" >> "$TMP_SCRIPT"
 			fi
 		# Start Contate Block
-		elif [[ "$line" =~ $CONTATE_START_REGEX ]] && [ $BASH_REMATCH[1] != "*#" ]; then
-			dbg "START SCRIPT"
+		elif [[ "$line" =~ $CONTATE_START_REGEX ]] && [[ "${BASH_REMATCH[1]}" != *"#" ]]; then
+			dbg "START SCR on '$line' with rematch: '${BASH_REMATCH[1]}'"
 			if grep -qe "tcc -run" <<< "$line"; then
 				IS_C=true
 			fi
 			# set filetype
 			TMP_SCRIPT="$(mktemp)"
-			echo ${line#${BASH_REMATCH[1]}} > "$TMP_SCRIPT"
-			CONTATED_FILE+="${BASH_REMATCH[1]}"
-			[[ "$line" =~ ^(\s*) ]]
+			echo "${line#${BASH_REMATCH[1]}}" >> "$TMP_SCRIPT"
+			echo -n "${CoS}${BASH_REMATCH[1]}" >>"$OUTPUT"
+			[[ "$line" =~ ^([[:space:]]*) ]]
 			INDENTATION="${BASH_REMATCH[1]}"
+			dbg "Captured indentation: '$INDENTATION'"
 		# Direct copy
 		elif [[ "$line" =~ $CONTATE_INLINE ]]; then
-			dbg "Inline replacement: ${BASH_REMATCH[1]}"
-			INLINE_OUTPUT="$(eval "$BASH_REMATCH[1]")"
-			must "$BASH_REMATCH[1] failed to be eval'ed"
-			CONTATED_FILE="${line/"#!$BASH_REMATCH[1]!#"/$INLINE_OUTPUT}"'\n'
+			dbg "Inline replacement: '${BASH_REMATCH[1]}'"
+			set -e
+			INLINE_OUTPUT="$(eval "${BASH_REMATCH[1]}")"
+			must $? "${BASH_REMATCH[1]} failed to be eval'ed"
+			set +e
+			echo "${CoI}${line/"#!${BASH_REMATCH[1]}!#"/$INLINE_OUTPUT}" >> "$OUTPUT"
 		else
-			CONTATED_FILE+="$line"'\n'
+			echo "${CoC}$line" >> "$OUTPUT"
 		fi
 	done < "$TARGET"
 	if [ -z "$TMP_SCRIPT" ]; then
-		echo -ne "${CONTATED_FILE}" > "$2"
 		dbg "WROTE SCRIPT"
 	else
 		err "Unexpected EOF in ${TARGET}"
@@ -309,29 +340,41 @@ done
 
 # RECURSE THROUGH INPUTS
 for target; do
-	if [ "$CONTATE_MASTER" = "$$" ]; then
-		export REMOVEABLE_PATH="$(dirname $(realpath $target))"/
+	if [ "$D_MASTER" = "$$" ]; then
+		if [ -f "$target" ]; then
+			export REMOVABLE_PATH="$(dirname $(realpath $target))"/
+		else
+			export REMOVABLE_PATH="$(realpath $target)"/
+		fi
+		dbg "REMOVABLE_PATH: $REMOVABLE_PATH"
 	fi
 	if [[ -d "${target}" && -x "${target}" && -r "${target}" ]]; then
 		dbg "TARGET DIRECTORY: ${target}"
-		${0} ${target}/*
-		must "Contate failed on one of ${target}/*"
+		${0} $(realpath ${target})/*
+		must $? "Contate failed on one of ${target}/*"
 	elif [[ -f "${target}" && -r "${target}" ]]; then
 		target="$(realpath $target)"
 		dbg "TARGET FILE: ${target}"
 		if [[ "${target}" =~ ${CONTATE_PATTERN} ]]; then
 			if [ "${CONTATE_OUTPUT}" != "/dev/stdout" ]; then
 				if [ -n "${BASH_REMATCH[1]}" ]; then
+					dbg "Calculating output: "
+					dbg "BASH_REMATCH: ${BASH_REMATCH[1]}"
+					dbg "REMOVABLE_PATH: ${REMOVABLE_PATH}"
 					OUTPUT_SUBPATH="${BASH_REMATCH[1]#${REMOVABLE_PATH}}"
 				else
+					dbg "Calculating output: "
+					dbg "target: ${target}"
+					dbg "REMOVABLE_PATH: ${REMOVABLE_PATH}"
 					OUTPUT_SUBPATH="${target#${REMOVABLE_PATH}}"
 				fi
-				CONTATE_OUTPUT="${CONTATE_OUTPUT}/${OUTPUT_SUBPATH}"
-				dbg "Is a contate file! it's output is: ${CONTATE_OUTPUT}"
+				SPECIFIC_OUTPUT="${CONTATE_OUTPUT}/${OUTPUT_SUBPATH}"
+				dbg "Is a contate file! it's output is: ${SPECIFIC_OUTPUT}"
+				mkdir -p "$(dirname ${SPECIFIC_OUTPUT})"
 			fi
 			if ! $CONTATE_DRY; then 
-				contate_file "${target}" "${CONTATE_OUTPUT}" 
-				must "Contate file failed somewhere on ${target} to ${CONTATE_OUTPUT}"
+				contate_file "${target}" "${SPECIFIC_OUTPUT}" 
+				must $? "Contate file failed somewhere on ${target} to ${SPECIFIC_OUTPUT}"
 				d_reload
 			fi
 		fi

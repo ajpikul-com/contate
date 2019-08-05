@@ -107,29 +107,41 @@ done
 
 # RECURSE THROUGH INPUTS
 for target; do
-	if [ "$CONTATE_MASTER" = "$$" ]; then
-		export REMOVEABLE_PATH="$(dirname $(realpath $target))"/
+	if [ "$D_MASTER" = "$$" ]; then
+		if [ -f "$target" ]; then
+			export REMOVABLE_PATH="$(dirname $(realpath $target))"/
+		else
+			export REMOVABLE_PATH="$(realpath $target)"/
+		fi
+		dbg "REMOVABLE_PATH: $REMOVABLE_PATH"
 	fi
 	if [[ -d "${target}" && -x "${target}" && -r "${target}" ]]; then
 		dbg "TARGET DIRECTORY: ${target}"
-		${0} ${target}/*
-		must "Contate failed on one of ${target}/*"
+		${0} $(realpath ${target})/*
+		must $? "Contate failed on one of ${target}/*"
 	elif [[ -f "${target}" && -r "${target}" ]]; then
 		target="$(realpath $target)"
 		dbg "TARGET FILE: ${target}"
 		if [[ "${target}" =~ ${CONTATE_PATTERN} ]]; then
 			if [ "${CONTATE_OUTPUT}" != "/dev/stdout" ]; then
 				if [ -n "${BASH_REMATCH[1]}" ]; then
+					dbg "Calculating output: "
+					dbg "BASH_REMATCH: ${BASH_REMATCH[1]}"
+					dbg "REMOVABLE_PATH: ${REMOVABLE_PATH}"
 					OUTPUT_SUBPATH="${BASH_REMATCH[1]#${REMOVABLE_PATH}}"
 				else
+					dbg "Calculating output: "
+					dbg "target: ${target}"
+					dbg "REMOVABLE_PATH: ${REMOVABLE_PATH}"
 					OUTPUT_SUBPATH="${target#${REMOVABLE_PATH}}"
 				fi
-				CONTATE_OUTPUT="${CONTATE_OUTPUT}/${OUTPUT_SUBPATH}"
-				dbg "Is a contate file! it's output is: ${CONTATE_OUTPUT}"
+				SPECIFIC_OUTPUT="${CONTATE_OUTPUT}/${OUTPUT_SUBPATH}"
+				dbg "Is a contate file! it's output is: ${SPECIFIC_OUTPUT}"
+				mkdir -p "$(dirname ${SPECIFIC_OUTPUT})"
 			fi
 			if ! $CONTATE_DRY; then 
-				contate_file "${target}" "${CONTATE_OUTPUT}" 
-				must "Contate file failed somewhere on ${target} to ${CONTATE_OUTPUT}"
+				contate_file "${target}" "${SPECIFIC_OUTPUT}" 
+				must $? "Contate file failed somewhere on ${target} to ${SPECIFIC_OUTPUT}"
 				d_reload
 			fi
 		fi

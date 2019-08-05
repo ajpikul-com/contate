@@ -9,26 +9,39 @@ if [ -z "$CONTATE_DEBUG" ]; then
 	export CONTATE_DEBUG=false
 fi
 
-# must will fail the last exit code isn't true
-must(){
-	if ! $?; then
-		err $1
-		exit 1
-	fi
-}
-
-# should will dbg if the last exit code isn't true
-should(){
-	if ! $?; then
-		dbg $1
-	fi
-}
+if $CONTATE_DEBUG; then
+	# Don't think tput works unless we're piping directly to console
+	export CoC="$(tput bold)c$(tput sgr0)"
+	export CoS="$(tput bold)s$(tput sgr0)"
+	export CoE="$(tput bold)e$(tput sgr0)"
+	export CoP="$(tput bold)p$(tput sgr0)"
+	export CoI="$(tput bold)i$(tput sgr0)"
+else
+	unset CoC CoS CoE CoP CoI
+fi
 
 dbg(){
 	if $CONTATE_DEBUG; then
 		>&2 echo "DEBUG: ${@}"
 	fi
 }
+
+# must will fail the last exit code isn't true
+must(){
+	dbg "must passed $1 for $2"
+	if [ $1 -ne 0 ]; then
+		err $2
+		exit 1
+	fi
+}
+
+# should will dbg if the last exit code isn't true
+should(){
+	if [ $1 -ne 0 ]; then
+		dbg $2
+	fi
+}
+
 dbg "defining utils"
 err(){
 	if ! $CONTATE_QUIET; then
