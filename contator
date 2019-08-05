@@ -30,6 +30,7 @@ contate_file(){
 	OUTPUT="$1"
 	CONTATED_FILE=""
 	IS_C=false
+	unset TMP_SCRIPT
 	while IFS='' read -r line || [[ -n "$line" ]]; do # if the EOF comes with no NL, second term helps
 		# IN SCRIPT
 		if [ -n "${TMP_SCRIPT}" ]; then
@@ -56,7 +57,7 @@ contate_file(){
 			[[ "$line" =~ ^(\s*) ]]
 			INDENTATION="${BASH_REMATCH[1]}"
 		# Direct copy
-		elif [[ "$line" =~ $CONTATE_INLINE ]];; then
+		elif [[ "$line" =~ $CONTATE_INLINE ]]; then
 			dbg "Inline replacement: ${BASH_REMATCH[1]}"
 			INLINE_OUTPUT="$(eval "$BASH_REMATCH[1]")"
 			must "$BASH_REMATCH[1] failed to be eval'ed"
@@ -65,7 +66,7 @@ contate_file(){
 			CONTATED_FILE+="$line"'\n'
 		fi
 	done < "$TARGET"
-	if [ "$TMP_SCRIPT" != "" ]; then
+	if [ -z "$TMP_SCRIPT" ]; then
 		echo -ne "${CONTATED_FILE}" > "$2"
 		dbg "WROTE SCRIPT"
 	else

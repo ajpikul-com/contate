@@ -11,7 +11,7 @@ fi
 
 # must will fail the last exit code isn't true
 must(){
-	if ! $?; then
+	if [ $? -ne 0 ]; then
 		err $1
 		exit 1
 	fi
@@ -42,13 +42,6 @@ usage(){
 	fi
 }
 dbg "util defined"
-
-def(){
-	if [ -z "${!1}" ]; then
-		dbg "Setting default for variable ${1} to ${2}"
-		eval "${1}"="${2}"
-	fi
-}
 #!/bin/bash
 
 # DICTIONARY
@@ -151,9 +144,9 @@ function c_execute {
 }
 
 
-def CONTATE_START_REGEX '^(.*)#!(?:/.+)+$'
-def CONTATE_END_REGEX '^(?:\s*)!#(.*)$'
-def CONTATE_INLINE '^.*#!($[{|\(].+[}|\)])!#.*$'
+[ -z "${CONTATE_STATE_REGEX}" ] && CONTATE_START_REGEX='^(.*)#!(?:/.+)+$'
+[ -z "${CONTATE_END_REGEX}" ] && CONTATE_END_REGEX='^(?:\s*)!#(.*)$'
+[ -z "${CONTATE_INLINE}" ] && CONTATE_INLINE='^.*#!($[{|\(].+[}|\)])!#.*$'
 # 1- Target file - realpath is fine, are we being passed that? it's fine to set it
 # 2- Output file- this needs to be a realpath + any directories that have been or need to be made
 contate_file(){ 
@@ -163,6 +156,7 @@ contate_file(){
 	OUTPUT="$1"
 	CONTATED_FILE=""
 	IS_C=false
+	unset TMP_SCRIPT
 	while IFS='' read -r line || [[ -n "$line" ]]; do # if the EOF comes with no NL, second term helps
 		# IN SCRIPT
 		if [ -n "${TMP_SCRIPT}" ]; then
@@ -189,7 +183,7 @@ contate_file(){
 			[[ "$line" =~ ^(\s*) ]]
 			INDENTATION="${BASH_REMATCH[1]}"
 		# Direct copy
-		elif [[ "$line" =~ $CONTATE_INLINE ]];; then
+		elif [[ "$line" =~ $CONTATE_INLINE ]]; then
 			dbg "Inline replacement: ${BASH_REMATCH[1]}"
 			INLINE_OUTPUT="$(eval "$BASH_REMATCH[1]")"
 			must "$BASH_REMATCH[1] failed to be eval'ed"
@@ -198,7 +192,7 @@ contate_file(){
 			CONTATED_FILE+="$line"'\n'
 		fi
 	done < "$TARGET"
-	if [ "$TMP_SCRIPT" != "" ]; then
+	if [ -z "$TMP_SCRIPT" ]; then
 		echo -ne "${CONTATED_FILE}" > "$2"
 		dbg "WROTE SCRIPT"
 	else
@@ -231,10 +225,10 @@ trap contate_clean EXIT
 
 # SET VARIABLES
 
-def CONTATE_RECURSE false
-def CONTATE_QUIET false
-def CONTATE_PATTERN '(.*).contate$'
-def CONTATE_DRY false
+[ -z "${CONTATE_RECURSE}" ] && CONTATE_RECURSE=false
+[ -z "${CONTATE_QUIET}" ] && CONTATE_QUIET=false
+[ -z "${CONTATE_PATTERN}" ] && CONTATE_PATTERN='(.*).contate$'
+[ -z "${CONTATE_DRY}" ] && CONTATE_DRY=false
 export CONTATE_QUIET CONTATE_RECURSE CONTATE_PATTERN CONTATE_OUTPUT CONTATE_DRY
 
 while getopts ":o:p:dqrh" opt; do
