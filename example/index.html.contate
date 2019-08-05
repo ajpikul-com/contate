@@ -1,5 +1,4 @@
 <html>
-	<!-- contate:
 		#!/usr/bin/python2.7
 		"""import mymodule as htmlgen
 		htmlgen.head_generator()"""
@@ -7,17 +6,15 @@
 		print "Ideally, contate would subtract all indents up to the shebang #!/"
 		print "Because python is sensitive to them"
 		print "But NOPE, that's work I can't do right now"
-	:contate -->
+		!#
 	<body>
-		<!-- contate:
 			#!/bin/bash
 			echo "Also bash"
-			./contate/contate --inherit --print -i body_template.contate
+			#contate --inherit --print -i body_template.contate
 			echo "Also, another file was just contated into this one"
-		:contate -->
-		But here is some good old ASCII
+			!#
 		<!-- contate:
-			#!/usr/bin/tcc -run
+			##!/usr/bin/tcc -run
 
 			#include <stdio.h>
 
@@ -29,7 +26,6 @@
 
 			}
 
-		:contate -->
 
 		One last ascii line
 	</body>

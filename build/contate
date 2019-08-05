@@ -9,6 +9,21 @@ if [ -z "$CONTATE_DEBUG" ]; then
 	export CONTATE_DEBUG=false
 fi
 
+# must will fail the last exit code isn't true
+must(){
+	if ! $?; then
+		err $1
+		exit 1
+	fi
+}
+
+# should will dbg if the last exit code isn't true
+should(){
+	if ! $?; then
+		dbg $1
+	fi
+}
+
 dbg(){
 	if $CONTATE_DEBUG; then
 		>&2 echo "DEBUG: ${@}"
@@ -31,7 +46,7 @@ dbg "util defined"
 def(){
 	if [ -z "${!1}" ]; then
 		dbg "Setting default for variable ${1} to ${2}"
-		eval "${1}=${2}"
+		eval "${1}"="${2}"
 	fi
 }
 #!/bin/bash
@@ -116,57 +131,79 @@ function d_del {
 
 
 export -f d_start d_clean d_get d_set d_del d_reload
+function c_execute {
+	dbg "Running $TMP_SCRIPT"
+	SCRIPT_OUTPUT=""
+	chmod +x "$TMP_SCRIPT"
+	must "Failed to set +x on $TMP_SCRIPT"
+	if [ "$IS_C" = true ]; then
+		dbg "It is C"
+		mv "$TMP_SCRIPT" "$TMP_SCRIPT".c
+		must "Couldn't rename $TMP_SCRIPT for C"
+		TMP_SCRIPT="$TMP_SCRIPT".c
+	fi
+	SCRIPT_OUTPUT="$($TMP_SCRIPT)"
+	must "Script output failed"
+	while IFS='' read -r scriptoutput2; do
+		CONTATED_FILE+="$INDENTATION""$scriptoutput2"'\n'
+	done <<< "$SCRIPT_OUTPUT"
+	unset IS_C
+}
 
+
+def CONTATE_START_REGEX '^(.*)#!(?:/.+)+$'
+def CONTATE_END_REGEX '^(?:\s*)!#(.*)$'
+def CONTATE_INLINE '^.*#!($[{|\(].+[}|\)])!#.*$'
 # 1- Target file - realpath is fine, are we being passed that? it's fine to set it
 # 2- Output file- this needs to be a realpath + any directories that have been or need to be made
 contate_file(){ 
-	dbg "TARGET=$(realpath "$1")"$'\n\n'
+	dbg "TARGET=$1"
+	dbg "OUTPUT=$2"
 	TARGET="$1"
-	unset CONTATED_FILE
-	if [ "$(grep "$TARGET" -ce "<!-- contate:")" -ne "$(grep "$TARGET" -ce ":contate -->")" ]; then
-		err 'You don'\''t have an equal number of "<!-- contate:" and ":contate --!>"'
-	fi
-	while IFS='' read -r line || [[ -n "$line" ]]; do
+	OUTPUT="$1"
+	CONTATED_FILE=""
+	IS_C=false
+	while IFS='' read -r line || [[ -n "$line" ]]; do # if the EOF comes with no NL, second term helps
+		# IN SCRIPT
 		if [ -n "${TMP_SCRIPT}" ]; then
-			##find and include a suffix
-			if [[ "$(awk '{$1=$1};1' <<< "$line")" == ":contate -->" ]]; then
-				chmod +x "$TMP_SCRIPT"
-				if [ "$IS_C" = true ]; then
-					mv "$TMP_SCRIPT" "$TMP_SCRIPT".c
-					TMP_SCRIPT="$TMP_SCRIPT".c
-				fi
-				SCRIPT_OUTPUT="$($TMP_SCRIPT)"
-				while IFS='' read -r newline; do
-					CONTATED_FILE+="$INDENTATION""$newline"'\n'
-				done <<< "$SCRIPT_OUTPUT"
-				#CONTATED_FILE+="$($TMP_SCRIPT)"'\n'
-				rm "$TMP_SCRIPT"
+			# END BLOCK
+			if [[ "$line" =~ $CONTATE_END_REGEX ]]; then
+				dbg "END SCRIPT"
+				c_execute # TODO what do with output?
+				CONTATED_FILE="${CONTATED_FILE%'\n'}"
+				CONTATED_FILE+="${BASH_REMATCH[1]}"'\n'
 				unset TMP_SCRIPT
-				unset INDENTATION
-				unset INDENT_FOUND
-				unset SCRIPT_OUTPUT
-				unset IS_C
 			else
-				if grep -qe "tcc -run" <<< "$line"; then
-					IS_C=true
-				fi
-				if grep -qe '#!/' <<< "$line" && test ! "$INDENT_FOUND" = true; then
-					INDENTATION="$(cut -d '#' -f 1 <<< "$line")"
-					INDENT_FOUND=true
-				fi
 				echo "${line#$INDENTATION}" >> "$TMP_SCRIPT"
 			fi
-		elif [[ "$(awk '{$1=$1};1' <<< "$line")" == "<!-- contate:" ]]; then
-			##find and include a prefix
+		# Start Contate Block
+		elif [[ "$line" =~ $CONTATE_START_REGEX ]] && [ $BASH_REMATCH[1] != "*#" ]; then
+			dbg "START SCRIPT"
+			if grep -qe "tcc -run" <<< "$line"; then
+				IS_C=true
+			fi
+			# set filetype
 			TMP_SCRIPT="$(mktemp)"
+			echo ${line#${BASH_REMATCH[1]}} > "$TMP_SCRIPT"
+			CONTATED_FILE+="${BASH_REMATCH[1]}"
+			[[ "$line" =~ ^(\s*) ]]
+			INDENTATION="${BASH_REMATCH[1]}"
+		# Direct copy
+		elif [[ "$line" =~ $CONTATE_INLINE ]];; then
+			dbg "Inline replacement: ${BASH_REMATCH[1]}"
+			INLINE_OUTPUT="$(eval "$BASH_REMATCH[1]")"
+			must "$BASH_REMATCH[1] failed to be eval'ed"
+			CONTATED_FILE="${line/"#!$BASH_REMATCH[1]!#"/$INLINE_OUTPUT}"'\n'
 		else
 			CONTATED_FILE+="$line"'\n'
 		fi
 	done < "$TARGET"
-	if [ -n "$2" ];	then
+	if [ "$TMP_SCRIPT" != "" ]; then
 		echo -ne "${CONTATED_FILE}" > "$2"
-	elif [ "$PRINT" = true ]; then
-		echo -ne "${CONTATED_FILE}"
+		dbg "WROTE SCRIPT"
+	else
+		err "Unexpected EOF in ${TARGET}"
+		exit 1
 	fi
 }
 #!/bin/bash
@@ -184,6 +221,7 @@ function contate_clean {
 	for file in "${CONTATE_TEMP_FILE_LIST[@]}"; do
 		dbg "rm'ing $file"
 		rm "$file"
+		should "$file didn't delete properly"
 	done
 }
 dbg "d_start()"
@@ -283,6 +321,7 @@ for target; do
 	if [[ -d "${target}" && -x "${target}" && -r "${target}" ]]; then
 		dbg "TARGET DIRECTORY: ${target}"
 		${0} ${target}/*
+		must "Contate failed on one of ${target}/*"
 	elif [[ -f "${target}" && -r "${target}" ]]; then
 		target="$(realpath $target)"
 		dbg "TARGET FILE: ${target}"
@@ -298,6 +337,8 @@ for target; do
 			fi
 			if ! $CONTATE_DRY; then 
 				contate_file "${target}" "${CONTATE_OUTPUT}" 
+				must "Contate file failed somewhere on ${target} to ${CONTATE_OUTPUT}"
+				d_reload
 			fi
 		fi
 	fi
