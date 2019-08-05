@@ -16,13 +16,14 @@ if $CONTATE_DEBUG; then
 	export CoE="$(tput bold)e$(tput sgr0)"
 	export CoP="$(tput bold)p$(tput sgr0)"
 	export CoI="$(tput bold)i$(tput sgr0)"
+	export DEBUGINDENT+="."
 else
 	unset CoC CoS CoE CoP CoI
 fi
 
 dbg(){
 	if $CONTATE_DEBUG; then
-		>&2 echo "DEBUG: ${@}"
+		>&2 echo "${DEBUGINDENT}DEBUG: ${@}"
 	fi
 }
 
@@ -55,6 +56,8 @@ usage(){
 	fi
 }
 dbg "util defined"
+
+export -f dbg should must err
 #!/bin/bash
 
 # DICTIONARY
@@ -66,18 +69,25 @@ function d_reload {
 	unset D_CACHE
 	declare -A D_CACHE
 	while IFS= read -r line; do
+		dbg "Line: $line; Key: ${line%%=*} and value: ${line#*=}"
 		D_CACHE["${line%%=*}"]="${line#*=}"
 	done < "${D_FILE}"
-	export D_CACHE
+	dbg "array keys: ${!D_CACHE[@]}"
+	dbg "array values: ${D_CACHE[@]}"
+	dbg "d_reload: declare -p D_CACHE: $(declare -p D_CACHE)"
 }
 
 # d_rewrite - will write the map to the file, should be called anytime we modify the cache
 function d_rewrite {
 	dbg "d_rewrite()"
-	echo "" > "${D_FILE}"
-	for key in "${!array[@]}"; do
-		echo "$i"="${array[$1]}" >> "${D_FILE}"
+	echo -n "" > "${D_FILE}"
+	dbg "array keys: ${!D_CACHE[@]}"
+	dbg "array values: ${D_CACHE[@]}"
+	for key in "${!D_CACHE[@]}"; do
+		dbg "writing $key"
+		echo "$key"="${D_CACHE[$key]}" >> "${D_FILE}"
 	done
+	dbg "Wrote file:$(cat ${D_FILE})"
 }
 
 # d_start - should be called at the beginning of any contate script
@@ -110,33 +120,42 @@ function d_clean {
 
 # d_get KEY - gets key or ""
 function d_get {
-	dbg "d_get()"
+	# TODO: check and reload D_CACHE
+	dbg "d_get($1)"
+	dbg "Got: ${D_CACHE[$1]}"
 	echo -ne "${D_CACHE[$1]}"
 }
 
 # d_set KEY VALUE - sets KEY to VALUE
 function d_set {
-	dbg "d_set()"
+	dbg "d_set($1, $2)"
 	# TODO: keys cannot contain spaces
-	D_CACHE[$1]="$2"
+	D_CACHE["$1"]="$2"
+	dbg "Declare -p D_CACHE $(declare -p D_CACHE)"
+	dbg "Ran: D_CACHE[\"$1\"]=\"$2\""
+	dbg "array keys: ${!D_CACHE[*]}"
+	dbg "array values: ${D_CACHE[*]}"
+	dbg "array value for key $1: ${D_CACHE[$1]}"
 	d_rewrite
+	dbg "array keys: ${!D_CACHE[*]}"
+	dbg "array values: ${D_CACHE[*]}"
 }
 
 # d_exists KEY - returns whether or not key exists
 function d_exists {
-	dbg "d_exists()"
+	dbg "d_exists($1)"
 	return $([ ${D_CACHE[$1]+_} ])
 }
 
 # d_del KEY - deletes the keyu
 function d_del {
-	dbg "d_del()"
+	dbg "d_del($1)"
 	unset D_CACHE["$1"]
 	d_rewrite
 }
 
 
-export -f d_start d_clean d_get d_set d_del d_reload
+export -f d_start d_clean d_get d_set d_del d_reload d_rewrite
 function c_execute {
 	dbg "Running $TMP_SCRIPT"
 	SCRIPT_OUTPUT=""
@@ -195,6 +214,7 @@ contate_file(){
 				dbg "END SCRIP on '$line' with rematch '${BASH_REMATCH[2]}'"
 				c_execute # TODO what do with output?
 				echo "${CoE}${BASH_REMATCH[2]}" >> ${OUTPUT}
+				rm "TMP_SCRIPT"
 				unset TMP_SCRIPT
 			else
 				dbg "Process line '$line'"
@@ -221,7 +241,7 @@ contate_file(){
 			must $? "${BASH_REMATCH[1]} failed to be eval'ed"
 			dbg "INLINE OUTPUT: $INLINE_OUTPUT"
 			set +e
-			echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!\#/$INLINE_OUTPUT}" >> "$OUTPUT"
+			echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}" >> "$OUTPUT"
 		else
 			echo "${CoC}$line" >> "$OUTPUT"
 		fi
@@ -251,8 +271,9 @@ function contate_clean {
 		should "$file didn't delete properly"
 	done
 }
-dbg "d_start()"
+dbg "top-ish of main"
 d_start
+dbg "main: declare -p D_CACHE $(declare -p D_CACHE)"
 dbg "trap contate_clean()"
 trap contate_clean EXIT
 

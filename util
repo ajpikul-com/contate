@@ -16,13 +16,14 @@ if $CONTATE_DEBUG; then
 	export CoE="$(tput bold)e$(tput sgr0)"
 	export CoP="$(tput bold)p$(tput sgr0)"
 	export CoI="$(tput bold)i$(tput sgr0)"
+	export DEBUGINDENT+="."
 else
 	unset CoC CoS CoE CoP CoI
 fi
 
 dbg(){
 	if $CONTATE_DEBUG; then
-		>&2 echo "DEBUG: ${@}"
+		>&2 echo "${DEBUGINDENT}DEBUG: ${@}"
 	fi
 }
 
@@ -55,3 +56,5 @@ usage(){
 	fi
 }
 dbg "util defined"
+
+export -f dbg should must err

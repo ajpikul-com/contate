@@ -22,3 +22,7 @@ i##!/bin/bash
 echo "Printed as it is, no execution with ## above it"
 !#
 #!$(echo inline)!#
+#!/bin/bash
+d_set "key1" "value1"
+echo "Retreiving key get1: $(d_get "key1")"
+!#

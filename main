@@ -16,7 +16,7 @@ function contate_clean {
 		should "$file didn't delete properly"
 	done
 }
-dbg "d_start()"
+dbg "top-ish of main"
 d_start
 dbg "trap contate_clean()"
 trap contate_clean EXIT
