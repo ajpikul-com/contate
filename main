@@ -142,7 +142,6 @@ for target; do
 			if ! $CONTATE_DRY; then 
 				contate_file "${target}" "${SPECIFIC_OUTPUT}" 
 				must $? "Contate file failed somewhere on ${target} to ${SPECIFIC_OUTPUT}"
-				d_reload
 			fi
 		fi
 	fi

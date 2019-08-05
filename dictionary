@@ -1,47 +1,46 @@
 #!/bin/bash
 
 # DICTIONARY
-
 dbg "defining dictionary"
 # d_reload_from_file - will just load the file into the map. It's called during d_start and probably after running another contate
 function d_reload_from_file {
-	dbg "d_reload()"
+	dbg "d_reload_from_file()"
 	unset D_CACHE
-	declare -A D_CACHE
+	export D_CACHE
+	unset TEMP_HASH
 	while IFS= read -r line; do
-		dbg "Line: $line; Key: ${line%%=*} and value: ${line#*=}"
-		D_CACHE["${line%%=*}"]="${line#*=}"
+		if [ -z "$TEMP_HASH" ]; then
+			TEMP_HASH="$line"
+			if [ "$TEMP_HASH" = "$D_HASH" ]; then
+				dbg "CACHE HIT"
+				return
+			fi
+			D_HASH="${TEMP_HASH}"
+		else
+			dbg "Line: $line;"
+			D_CACHE+="${line} "
+			D_CACHE="${D_CACHE% }"
+		fi
 	done < "${D_FILE}"
-	unset D_CACHE_KEYS
-	unset D_CACHE_VALS
-	export D_CACHE_VALS
-  export D_CACHE_KEYS="${!D_CACHE[*]}"
-	for key in "${!D_CACHE[@]}"; do
-		D_CACHE_VALS+="$(base64 <<< "${D_CACHE[$KEY]}") "
-	done
-	D_CACHE_VALS="${D_CACHE_VALS% }"
-	dbg "Keys: ${D_CACHE_KEYS}"
-	dbg "Vals${D_CACHE_VALS}"
-	dbg "d_reload: declare -p D_CACHE: $(declare -p D_CACHE)"
 }
 
-# d_rewrite - will write the map to the file, should be called anytime we modify the cache
-function d_rewrite {
-	dbg "d_rewrite()"
+# d_rewrite_to_file - will write the map to the file, should be called anytime we modify the cache
+function d_rewrite_to_file {
+	dbg "d_rewrite_to_file()"
 	echo -n "" > "${D_FILE}"
-	dbg "array keys: ${!D_CACHE[@]}"
-	dbg "array values: ${D_CACHE[@]}"
-	for key in "${!D_CACHE[@]}"; do
-		dbg "writing $key"
-		echo "$key"="${D_CACHE[$key]}" >> "${D_FILE}"
+	for key in $D_CACHE; do
+		echo "$key" >> "${D_FILE}"
 	done
 	dbg "Wrote file:$(cat ${D_FILE})"
+	D_HASH="$(md5 "${D_FILE}")"
+	sed -i "1s/^/$D_HASH\n/" ${D_FILE}
 }
 
 # d_start - should be called at the beginning of any contate script
 function d_start {
 	dbg "d_start()"
 	if [[ -z "${D_MASTER}" ]]; then
+		D_HASH=""
 		D_MASTER=$$
 		D_FILE="$(mktemp)"
 		# TODO: check result?
@@ -52,9 +51,10 @@ function d_start {
 	fi
 	export D_MASTER
 	export D_FILE
+	export D_HASH
 	dbg "D_MASTER: ${D_MASTER}"
 	dbg "D_FILE: ${D_FILE}"
-	d_reload
+	d_reload_from_file
 }
 
 # d_clean - should be set to trap EXIT/FINISH
@@ -68,39 +68,94 @@ function d_clean {
 
 # d_get KEY - gets key or ""
 function d_get {
-	# TODO: check and reload D_CACHE
+	d_reload_from_file
+	unset D_CACHE_MAP
+	declare -A D_CACHE_MAP
+	unset TEMPKEY
+	for thing in $D_CACHE; do
+		if [ -z "${TEMPKEY}" ]; then
+			TEMPKEY="$thing"
+		else
+			D_CACHE_MAP[$TEMPKEY]="$thing"
+			unset TEMPKEY
+		fi
+	done
 	dbg "d_get($1)"
-	dbg "Got: ${D_CACHE[$1]}"
-	echo -ne "${D_CACHE[$1]}"
+	# write map
+	dbg "Got: $(base64 -d <<< ${D_CACHE_MAP["$(base64 <<< "$1")"]})"
+	echo -n "$(base64 -d <<< ${D_CACHE_MAP["$(base64 <<< "$1")"]})"
 }
 
 # d_set KEY VALUE - sets KEY to VALUE
 function d_set {
 	dbg "d_set($1, $2)"
+	d_reload_from_file
 	# TODO: keys cannot contain spaces
-	D_CACHE["$1"]="$2"
-	dbg "Declare -p D_CACHE $(declare -p D_CACHE)"
-	dbg "Ran: D_CACHE[\"$1\"]=\"$2\""
-	dbg "array keys: ${!D_CACHE[*]}"
-	dbg "array values: ${D_CACHE[*]}"
-	dbg "array value for key $1: ${D_CACHE[$1]}"
-	d_rewrite
-	dbg "array keys: ${!D_CACHE[*]}"
-	dbg "array values: ${D_CACHE[*]}"
+	unset D_CACHE_MAP
+	declare -A D_CACHE_MAP
+	unset TEMPKEY
+	for thing in $D_CACHE; do
+		if [ -z "${TEMPKEY}" ]; then
+			TEMPKEY="$thing"
+		else
+			D_CACHE_MAP[$TEMPKEY]="$thing"
+			unset TEMPKEY
+		fi
+	done
+	D_CACHE_MAP["$(base64 <<< "$1")"]="$(base64 <<< "$2")"
+	# No
+	unset D_CACHE
+	export D_CACHE #TODO is this everywhere
+	for key in "${!D_CACHE_MAP[@]}"; do
+		D_CACHE+="${key} ${D_CACHE_MAP["$key"]} "
+	done
+	D_CACHE="${D_CACHE% }"
+	d_rewrite_to_file
 }
 
 # d_exists KEY - returns whether or not key exists
 function d_exists {
 	dbg "d_exists($1)"
-	return $([ ${D_CACHE[$1]+_} ])
+	d_reload_from_file
+	unset D_CACHE_MAP
+	declare -A D_CACHE_MAP
+	unset TEMPKEY
+	for thing in $D_CACHE; do
+		if [ -z "${TEMPKEY}" ]; then
+			TEMPKEY="$thing"
+		else
+			D_CACHE_MAP[$TEMPKEY]="$thing"
+			unset TEMPKEY
+		fi
+	done
+	return $([ ${D_CACHE["$(base64 <<< "$1")"]+_} ])
 }
 
 # d_del KEY - deletes the keyu
 function d_del {
 	dbg "d_del($1)"
-	unset D_CACHE["$1"]
-	d_rewrite
+	d_reload_from_file
+	# TODO: keys cannot contain spaces
+	unset D_CACHE_MAP
+	declare -A D_CACHE_MAP
+	unset TEMPKEY
+	for thing in $D_CACHE; do
+		if [ -z "${TEMPKEY}" ]; then
+			TEMPKEY="$thing"
+		else
+			D_CACHE_MAP[$TEMPKEY]="$thing"
+			unset TEMPKEY
+		fi
+	done
+	unset D_CACHE_MAP["$(base64 <<< "$1")"]
+	unset D_CACHE
+	export D_CACHE #TODO is this everywhere
+	for key in "${!D_CACHE_MAP[@]}"; do
+		D_CACHE+="${key} ${D_CACHE_MAP["$key"]} "
+	done
+	D_CACHE="${D_CACHE% }"
+	d_rewrite_to_file
 }
 
 
-export -f d_start d_clean d_get d_set d_del d_reload d_rewrite
+export -f d_start d_clean d_get d_set d_del d_reload_from_file d_rewrite_to_file
