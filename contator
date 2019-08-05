@@ -49,9 +49,6 @@ contate_file(){
 	unset TMP_SCRIPT
 	while IFS='' read -r line || [[ -n "$line" ]]; do # if the EOF comes with no NL, second term helps
 		# IN SCRIPT
-		[[ "$line" =~ $CONTATE_START_REGEX ]] && dbg "(NOTE) Start: '$line' with '${BASH_REMATCH[1]}'"
-		[[ "$line" =~ $CONTATE_END_REGEX ]] && dbg "(NOTE) End: '$line' with '${BASH_REMATCH[2]}'"
-		[[ "$line" =~ $CONTATE_INLINE ]] && dbg "(NOTE) Inline:'$line' with '${BASH_REMATCH[1]}'"
 		if [ -n "${TMP_SCRIPT}" ]; then
 			# END BLOCK..
 			if [[ "$line" =~ $CONTATE_END_REGEX ]]; then
