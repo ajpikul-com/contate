@@ -4,6 +4,8 @@
 
 shopt -s nullglob globstar
 
+set -e
+
 # An array of all the variables we've created
 declare -a CONTATE_TEMP_FILE_LIST
 
