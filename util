@@ -10,12 +10,11 @@ if [ -z "$CONTATE_DEBUG" ]; then
 fi
 
 if $CONTATE_DEBUG; then
-	# Don't think tput works unless we're piping directly to console
-	export CoC="$(tput bold)c$(tput sgr0)"
-	export CoS="$(tput bold)s$(tput sgr0)"
-	export CoE="$(tput bold)e$(tput sgr0)"
-	export CoP="$(tput bold)p$(tput sgr0)"
-	export CoI="$(tput bold)i$(tput sgr0)"
+	export CoC="c"
+	export CoS="s"
+	export CoE="e"
+	export CoP="p"
+	export CoI="i"
 	export DEBUGINDENT+="."
 else
 	unset CoC CoS CoE CoP CoI
