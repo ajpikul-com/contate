@@ -2,8 +2,17 @@
 # Multiple shebangs are fine :-)
 
 #UTIL
-
 # error function checks?
+
+export contate_cmd="${BASH_SOURCE}"
+if [ -z "${BASH_SOURCE}" ]; then
+	err "However you're running this script, ssh or somethign, we don't support that yet. Maybe main should be an actual contate function that then exports it and calls contate, that way we cab avoid knowing where we are."
+	exit 1
+fi
+
+function contate {
+	${contate_cmd} "${@}"
+}
 
 if [ -z "$CONTATE_DEBUG" ]; then
 	export CONTATE_DEBUG=false
