@@ -1,7 +1,10 @@
 #!/bin/bash
+	
+export D_MASTER D_FILE D_HASH D_CACHE
 
 # DICTIONARY
 dbg "defining dictionary"
+
 # d_reload_from_file - will just load the file into the map. It's called during d_start and probably after running another contate
 function d_reload_from_file {
 	dbg "d_reload_from_file() (${D_FILE})"
@@ -19,7 +22,7 @@ function d_reload_from_file {
 			fi
 			unset D_CACHE
 			export D_CACHE
-			exportD_HASH="${TEMP_HASH}"
+			D_HASH="${TEMP_HASH}"
 		else
 			dbg "Line: $line;"
 			D_CACHE+="${line} "
@@ -40,6 +43,9 @@ function d_rewrite_to_file {
 	D_HASH="$(md5sum "${D_FILE}")"
 	sed -i "1i$D_HASH" ${D_FILE}
 	dbg "Wrote file:$(cat ${D_FILE})"
+	if [ -z "$(cat ${D_FILE})" ]; then
+		echo "$D_HASH" > "${D_FILE}"
+	fi
 }
 
 # d_start - should be called at the beginning of any contate script
@@ -49,15 +55,11 @@ function d_start {
 		D_HASH=""
 		D_MASTER=$$
 		D_FILE="$(mktemp)"
-		# TODO: check result?
+		d_rewrite_to_file
 	elif [[ ! -f ${D_FILE} ]]; then
-		# TODO: err,  there is no file but master is set? it should have declared it
+		err "D_FILE should not be null if D_MASTER is non-zero"
 		return 1
-		:
 	fi
-	export D_MASTER
-	export D_FILE
-	export D_HASH
 	dbg "D_MASTER: ${D_MASTER}"
 	dbg "D_FILE: ${D_FILE}"
 	d_reload_from_file
@@ -70,6 +72,10 @@ function d_clean {
 	if [[ "$$" = "${D_MASTER}" && -f "${D_FILE}" ]]; then
 		rm "${D_FILE}"
 	fi
+	unset D_MASTER
+	unset D_FILE
+	unset D_CACHE
+	unset D_HASH
 }
 
 

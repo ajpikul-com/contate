@@ -1,0 +1,108 @@
+#!/bin/bash
+
+. util
+. dictionary
+
+oneTimeSetUp() {
+	:
+}
+
+oneTimeTearDown() {
+	:
+}
+
+setUp() {
+	:
+}
+
+tearDown() {
+	d_clean
+}
+
+testStart() {
+	d_start
+	assertEquals "$$" "$D_MASTER"
+	export OLD_PID="$$"
+	assertTrue "[ -f "$D_FILE" ]"
+	export OLD_FILE=$D_FILE
+	assertSame "FILE ${D_FILE}:$(cat ${D_FILE}) and D_HASH:${D_HASH}" "$(head -n 1 "${D_FILE}")" "$D_HASH"
+	assertTrue "[ -n \"$D_HASH\" ]"
+	(
+		d_start
+		assertNotEquals "\$$" "$D_MASTER"
+		assertEquals "${OLD_PID}" "$D_MASTER"
+		assertTrue "[ -f "$D_FILE" ]"
+		assertEquals "${OLD_FILE}" "${D_FILE}"
+		assertSame "FILE ${D_FILE}:$(cat ${D_FILE}) and D_HASH:${D_HASH}" "$(head -n 1 "${D_FILE}")" "$D_HASH"
+		assertTrue "[ -n \"$D_HASH\" ]"
+	)	
+}
+
+testClean() {
+	d_start
+	assertTrue "[ -f "$D_FILE" ]"
+	OLD_FILE="${D_FILE}"
+	d_clean
+	assertFalse "[ -f "${OLD_FILE}" ]"
+}
+
+export TMP_EXAMPLE='8f272e14196b0b0a64afe3da7383aca4  test
+a2V5MQo=
+dmFsMQo=
+a2V5Mgo=
+dmFsMgo='
+
+export CACHE_EXAMPLE='a2V5MQo= dmFsMQo= a2V5Mgo= dmFsMgo='
+
+rewrite_tmp() {
+	TMP_EXAMPLE="${TMP_EXAMPLE/test/${D_FILE}}"
+}
+
+testReload() {
+	d_start
+	echo "$TMP_EXAMPLE" > "$D_FILE"
+	assertNotEquals "d_cache isn't cache" "${CACHE_EXAMPLE}" "${D_CACHE}"
+	d_reload_from_file
+	assertEquals "d_cache is cache" "${CACHE_EXAMPLE}" "${D_CACHE}"
+}
+
+testRewrite() {
+	d_start
+	rewrite_tmp
+	D_CACHE="${CACHE_EXAMPLE}"
+	assertNotEquals "file isn't example file" "$(echo "${TMP_EXAMPLE}" | head -n 1)" "$(head -n 1 ${D_FILE})"
+	d_rewrite_to_file
+	assertEquals "file isn't example file" "$( echo "${TMP_EXAMPLE}" | head -n 1)" "$(cat ${D_FILE} | head -n 1)"
+}
+
+testGet() {
+	d_start
+	echo "$TMP_EXAMPLE" > "$D_FILE"
+	assertEquals "val1 from key1" "val1" "$(d_get "key1")"
+	assertEquals "val2 from key2" "val2" "$(d_get "key2")"
+}
+
+testSet() {
+	d_start
+	d_set "key1" "val1"
+	assertEquals "$(echo ${CACHE_EXAMPLE} | cut -f1-2 -d" " )" "$D_CACHE"
+}
+
+testExists() {
+	d_start
+	echo "$TMP_EXAMPLE" > "$D_FILE"
+	assertTrue "key1 exists" "d_exists \"key1\""
+	assertFalse "key3 exists" "d_exists \"key3\""
+}
+
+testDel() {
+	d_start
+	echo "$TMP_EXAMPLE" > "$D_FILE"
+	d_reload_from_file
+	d_del "key2"
+	assertEquals "$(echo ${CACHE_EXAMPLE} | cut -f1-2 -d" " )" "$D_CACHE"
+	d_del "key1"
+	assertNull "${D_CACHE}"
+}
+
+. shunit2/shunit2

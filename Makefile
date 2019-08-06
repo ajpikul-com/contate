@@ -13,4 +13,7 @@ examples: all
 		-rm -r output/**
 		./build/contate -ro output/ example/
 		tree output
+		diff output/ example_output/ -r
 
+test: all
+		bash *_test
