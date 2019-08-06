@@ -11,6 +11,6 @@ all:
 examples: all
 		mkdir -p output
 		-rm -r output/**
-		CONTATE_DEBUG=true ./build/contate -ro output/ example/
+		./build/contate -ro output/ example/
 		tree output
 

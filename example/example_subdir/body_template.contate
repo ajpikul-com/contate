@@ -33,4 +33,4 @@ echo "Retreiving key from different script: $(d_get "key1")"
 #!$(d_set "key1" "newval1")!#
 #!$(d_set "key2" "val2")!#
 #!$(echo $(d_get "key1"))!#
-#!$(echo $(d_get "key2"))!#
+--#!$(echo $(d_get "key2"))!#--
