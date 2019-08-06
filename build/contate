@@ -64,24 +64,28 @@ export -f dbg should must err
 dbg "defining dictionary"
 # d_reload_from_file - will just load the file into the map. It's called during d_start and probably after running another contate
 function d_reload_from_file {
-	dbg "d_reload_from_file()"
+	dbg "d_reload_from_file() (${D_FILE})"
+	dbg "file:$(cat ${D_FILE})"
+	dbg "D_CACHE: $D_CACHE"
+	dbg "D_HASH: $D_HASH"
+	unset TEMP_HASH
 	while IFS= read -r line; do
-		unset TEMP_HASH
 		if [ -z "$TEMP_HASH" ]; then
+			dbg "TEMP_HASH EMPTY SO $line"
 			TEMP_HASH="$line"
 			if [ "$TEMP_HASH" = "$D_HASH" ]; then
 				dbg "CACHE HIT"
 				return
 			fi
-		export	D_HASH="${TEMP_HASH}"
-		else
 			unset D_CACHE
 			export D_CACHE
+			exportD_HASH="${TEMP_HASH}"
+		else
 			dbg "Line: $line;"
 			D_CACHE+="${line} "
-			D_CACHE="${D_CACHE% }"
 		fi
 	done < "${D_FILE}"
+	D_CACHE="${D_CACHE% }"
 	dbg "D_CACHE: ${D_CACHE}"
 }
 
@@ -322,7 +326,9 @@ contate_file(){
 			must $? "${BASH_REMATCH[1]} failed to be eval'ed"
 			dbg "INLINE OUTPUT: $INLINE_OUTPUT"
 			set +e
-			echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}" >> "$OUTPUT"
+			if [ -n "$INLINE_OUTPUT" ]; then
+				echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}" >> "$OUTPUT"
+			fi
 		else
 			echo "${CoC}$line" >> "$OUTPUT"
 		fi

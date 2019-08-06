@@ -82,7 +82,9 @@ contate_file(){
 			must $? "${BASH_REMATCH[1]} failed to be eval'ed"
 			dbg "INLINE OUTPUT: $INLINE_OUTPUT"
 			set +e
-			echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}" >> "$OUTPUT"
+			if [ -n "$INLINE_OUTPUT" ]; then
+				echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}" >> "$OUTPUT"
+			fi
 		else
 			echo "${CoC}$line" >> "$OUTPUT"
 		fi

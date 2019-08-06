@@ -26,3 +26,11 @@ echo "Printed as it is, no execution with ## above it"
 d_set "key1" "value1"
 echo "Retreiving key get1: $(d_get "key1")"
 !#
+#!/bin/bash
+echo "Retreiving key from different script: $(d_get "key1")"
+!#
+#!$(echo $(d_get "key1"))!#
+#!$(d_set "key1" "newval1")!#
+#!$(d_set "key2" "val2")!#
+#!$(echo $(d_get "key1"))!#
+#!$(echo $(d_get "key2"))!#
