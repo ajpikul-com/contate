@@ -40,7 +40,7 @@ Contate targets by default must have a `.contate` ending and they will be output
 NOTE: Contate exports its options as env vars so contate-subprocesses can use them. Therefore, setting output explicitly to stdout when using `contate` in `*.contate` files is wise.
 
 You are **NOT** limited to bash scripts.
-You have inline bash scripts: `#!$(_your command)!#`
+You have inline bash scripts: `#!$(command)!#`
 You can escape shebangs: `##!/this/is/static`
 
 ### Cross-script variables
