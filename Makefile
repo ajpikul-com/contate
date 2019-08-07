@@ -16,4 +16,4 @@ examples: all
 		diff output/ example_output/ -r
 
 test: all
-		bash *_test
+		for file in *_test; do bash $$file; done

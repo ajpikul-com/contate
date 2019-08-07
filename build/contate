@@ -269,12 +269,10 @@ function c_execute {
 		must $? "Couldn't rename $TMP_SCRIPT for C"
 		TMP_SCRIPT="$TMP_SCRIPT".c
 	fi
-	set -e
 	SCRIPT_OUTPUT="$($TMP_SCRIPT)"
 	must $? "Script output failed"
 	TOTAL_LINES=$(echo "$SCRIPT_OUTPUT"| wc -l)
 	i=0
-	set +e
 	while IFS='' read -r scriptoutput2; do
 		dbg "Line Number:$i / $TOTAL_LINES"
 		i=$(( i + 1 ))
@@ -335,11 +333,9 @@ contate_file(){
 		# Direct copy
 		elif [[ "$line" =~ $CONTATE_INLINE ]]; then
 			dbg "Inline replacement: '${BASH_REMATCH[1]}'"
-			set -e
 			INLINE_OUTPUT="$(eval "${BASH_REMATCH[1]}")"
 			must $? "${BASH_REMATCH[1]} failed to be eval'ed"
 			dbg "INLINE OUTPUT: $INLINE_OUTPUT"
-			set +e
 			if [ -n "$INLINE_OUTPUT" ]; then
 				echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}" >> "$OUTPUT"
 			fi
@@ -359,6 +355,8 @@ contate_file(){
 # BASIC INITIALIZATIONS
 
 shopt -s nullglob globstar
+
+set -e
 
 # An array of all the variables we've created
 declare -a CONTATE_TEMP_FILE_LIST
