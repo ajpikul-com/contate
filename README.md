@@ -76,18 +76,24 @@ Whatever you put here (quote it) gets sent wholesale to the `find` command that 
 
 Die quietly. No stderr. I think.
 
-**`-s` or `--script`**
+**`-s` or `-\-script`**
 
 Not being used, was meant to run scripts instead of embedding them.
 
-**`-v` or `--var`**
+**`-v` or `-\-var`**
 
 Takes two arguments, and either sets or gets. No point running this if not being called by another contate which provided a TMP_VAR env variable defining which files variables are stored in.
 
-**`-c` or `--copy`**
+**`-c` or `-\-copy`**
 
 Use quotes to include search patterns, just uses a test FILE1 -ef FILE2 type checking.
 
 ## Issues
 
 Don't use -v or setvar,getvar (which you CAN use in your bash scripts) for complicated variables. Make your own temporary file, in that case. It's just not escaped or anything properly. Be ultra conservative with quoting exclude and copy, for the same reason.
+
+# TODO:
+
+* util_test
+* main_test (split main into init and recurse functions first)
+* contator_test (split parsing state machine into state functions first)
