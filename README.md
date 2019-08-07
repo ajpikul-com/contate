@@ -32,11 +32,12 @@ Contate targets by default must have a `.contate` ending and they will be output
 `contate [OPTIONS] targets...`
 
 * If target contains directories, you must specify `-r`.
-* `-o` to specify the output _folder_ or `-` for stdout (default)
+* `-o` to specify the output _folder_ or `-o -` for stdout (default) (SEE NOTE)
 * `-d` for dry run which skips actual file parsing.
 * `-q` is intended to silence all output
 * `-p` will replace the selection POSIX regex pattern. The default is: `(.*).contate$` where the capture group is the output path (placed on-top of that specified by `-o`)
 
+NOTE: Contate exports its options as env vars so contate=children can use them. Therefore, setting output explicitly to stdout when using `contate` in `*.contate` files is wise.
 
 You are **NOT** limited to bash scripts.
 You have inline bash scripts: `#!$(_your command)!#`
