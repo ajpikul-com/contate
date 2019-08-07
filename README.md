@@ -97,3 +97,5 @@ Don't use -v or setvar,getvar (which you CAN use in your bash scripts) for compl
 * util_test
 * main_test (split main into init and recurse functions first)
 * contator_test (split parsing state machine into state functions first)
+* make examples legible and demonstrative- a contate github.io maybe
+* maybe thing about portability/porting entirely

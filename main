@@ -32,6 +32,9 @@ while getopts ":o:p:dqrh" opt; do
 		;;
 	o)
 		CONTATE_OUTPUT="${OPTARG}"
+		if [ "$CONTATE_OUTPUT" = "-" ]; then
+			CONTATE_OUTPUT="/dev/stdout"
+		fi
 		;;
 	r)
 		CONTATE_RECURSE=true

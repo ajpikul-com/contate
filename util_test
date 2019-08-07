@@ -1,0 +1,12 @@
+#!/bin/bash 
+
+#assertEquals [message] 1 1
+#assertNotEquals [message] 1 0
+#assertContains [message] container content
+#assertNotContains [message]  
+#assertNull [message]
+#assertNotNull [message]
+#assertTrue [message]
+#assertFalse [message]
+#fail [message]
+
