@@ -362,18 +362,11 @@ set -e
 declare -a CONTATE_TEMP_FILE_LIST
 
 # contate_clean is a function to delete those temps and call dictionary's clean too, which celetes the variable temp
-function contate_clean {
-	d_clean
-	for file in "${CONTATE_TEMP_FILE_LIST[@]}"; do
-		dbg "rm'ing $file"
-		rm "$file"
-		should "$file didn't delete properly"
-	done
-}
+
 dbg "top-ish of main"
 d_start
 dbg "trap contate_clean()"
-trap contate_clean EXIT
+trap d_clean EXIT
 
 # SET VARIABLES
 
@@ -391,6 +384,9 @@ while getopts ":o:p:dqrh" opt; do
 		;;
 	o)
 		CONTATE_OUTPUT="${OPTARG}"
+		if [ "$CONTATE_OUTPUT" = "-" ]; then
+			CONTATE_OUTPUT="/dev/stdout"
+		fi
 		;;
 	r)
 		CONTATE_RECURSE=true

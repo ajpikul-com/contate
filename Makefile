@@ -15,5 +15,5 @@ examples: all
 		tree output
 		diff output/ example_output/ -r
 
-test: all
+test: all examples
 		for file in *_test; do bash $$file; done
