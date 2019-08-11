@@ -10,10 +10,10 @@ all:
 	
 examples: all
 		mkdir -p output
-		-rm -r output/**
+		rm -fr output/**
 		./build/contate -ro output/ example/
 		tree output
-		diff output/ example_output/ -r
 
 test: all examples
+		diff output/ example_output/ -r
 		for file in *_test; do bash $$file; done

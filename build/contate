@@ -376,9 +376,12 @@ trap d_clean EXIT
 [ -z "${CONTATE_DRY}" ] && CONTATE_DRY=false
 export CONTATE_QUIET CONTATE_RECURSE CONTATE_PATTERN CONTATE_OUTPUT CONTATE_DRY
 
-while getopts ":o:p:dqrh" opt; do
+while getopts ":o:p:c:dqrh" opt; do
 	dbg "Getopts iteration"
 	case "$opt" in
+	c)
+		CONTATE_CONFIG="$OPT_ARG"
+		;;
 	d)
 		CONTATE_DRY=true
 		;;
@@ -423,76 +426,86 @@ dbg "CONTATE_PATTERN=${CONTATE_PATTERN}"
 dbg "CONTATE FILES: ${*}"
 
 # VALIDATE FLAGS
+validate_input() {
+	if ${CONTATE_QUIET} && ${CONTATE_DEBUG}; then
+		err "You cannot set both quiet and debug"
+		exit 1
+	fi
 
-if ${CONTATE_QUIET} && ${CONTATE_DEBUG}; then
-	err "You cannot set both quiet and debug"
-	exit 1
-fi
-
-if [[ -d "${CONTATE_OUTPUT}" ]]; then
-	if [[ -w "${CONTATE_OUTPUT}" ]]; then
-		dbg "CONTATE_OUTPUT is a directory"
-		CONTATE_OUTPUT="$(realpath "${CONTATE_OUTPUT}")"
+	if [[ -d "${CONTATE_OUTPUT}" ]]; then
+		if [[ -w "${CONTATE_OUTPUT}" ]]; then
+			dbg "CONTATE_OUTPUT is a directory"
+			CONTATE_OUTPUT="$(realpath "${CONTATE_OUTPUT}")"
+		else
+			err "Can't write to ${CONTATE_OUTPUT}"
+			exit 1
+		fi
+	elif [ -z "${CONTATE_OUTPUT}" ] || [ "${CONTATE_OUTPUT}" = "/dev/stdout" ]; then
+		dbg "CONTATE_OUTPUT not set, so stdout"
+		CONTATE_OUTPUT="/dev/stdout"
 	else
-		err "Can't write to ${CONTATE_OUTPUT}"
-		exit 1
-	fi
-elif [ -z "${CONTATE_OUTPUT}" ] || [ "${CONTATE_OUTPUT}" = "/dev/stdout" ]; then
-	dbg "CONTATE_OUTPUT not set, so stdout"
-	CONTATE_OUTPUT="/dev/stdout"
-else
-	err "Contate cannot currently create directories or use a custom naming scheme for files beyond -p"
-	usage
-	exit
-fi
-dbg "CONTATE_OUTPUT reset to: ${CONTATE_OUTPUT}"
-
-for target; do
-	if [[ -d "${target}" ]] && ! $CONTATE_RECURSE; then
-		err "${target} is a directory but didn't specify -r"
+		err "Contate cannot currently create directories or use a custom naming scheme for files beyond -p"
 		usage
+		exit
+	fi
+	dbg "CONTATE_OUTPUT reset to: ${CONTATE_OUTPUT}"
+
+	if [ -n "${CONTATE_COBFIG}" ] && [ ! -d "${CONTATE_CONFIG}" ] && [ ! -f "${CONTATE_CONFIG}" ]; then
+		err "-c Must set a file or directory"
 		exit 1
 	fi
-done
+}
+validate_input
 
 # RECURSE THROUGH INPUTS
-for target; do
-	if [ "$D_MASTER" = "$$" ]; then
-		if [ -f "$target" ]; then
-			export REMOVABLE_PATH="$(dirname $(realpath $target))"/
-		else
-			export REMOVABLE_PATH="$(realpath $target)"/
+recurse() {
+	for target; do
+		for target; do
+			if [[ -d "${target}" ]] && ! $CONTATE_RECURSE; then
+				err "${target} is a directory but didn't specify -r"
+				usage
+				exit 1
+			fi
+		done
+
+		if [ "$D_MASTER" = "$$" ]; then
+			if [ -f "$target" ]; then
+				export REMOVABLE_PATH="$(dirname $(realpath $target))"/
+			else
+				export REMOVABLE_PATH="$(realpath $target)"/
+			fi
+			dbg "REMOVABLE_PATH: $REMOVABLE_PATH"
 		fi
-		dbg "REMOVABLE_PATH: $REMOVABLE_PATH"
-	fi
-	if [[ -d "${target}" && -x "${target}" && -r "${target}" ]]; then
-		dbg "TARGET DIRECTORY: ${target}"
-		contate $(realpath ${target})/*
-		must $? "Contate failed on one of $(realpath ${target})/*"
-	elif [[ -f "${target}" && -r "${target}" ]]; then
-		target="$(realpath $target)"
-		dbg "TARGET FILE: ${target}"
-		if [[ "${target}" =~ ${CONTATE_PATTERN} ]]; then
-			if [ "${CONTATE_OUTPUT}" != "/dev/stdout" ]; then
-				if [ -n "${BASH_REMATCH[1]}" ]; then
-					dbg "Calculating output: "
-					dbg "BASH_REMATCH: ${BASH_REMATCH[1]}"
-					dbg "REMOVABLE_PATH: ${REMOVABLE_PATH}"
-					OUTPUT_SUBPATH="${BASH_REMATCH[1]#${REMOVABLE_PATH}}"
-				else
-					dbg "Calculating output: "
-					dbg "target: ${target}"
-					dbg "REMOVABLE_PATH: ${REMOVABLE_PATH}"
-					OUTPUT_SUBPATH="${target#${REMOVABLE_PATH}}"
+		if [[ -d "${target}" && -x "${target}" && -r "${target}" ]]; then
+			dbg "TARGET DIRECTORY: ${target}"
+			recurse $(realpath ${target})/*
+			must $? "Contate failed on one of $(realpath ${target})/*"
+		elif [[ -f "${target}" && -r "${target}" ]]; then
+			target="$(realpath $target)"
+			dbg "TARGET FILE: ${target}"
+			if [[ "${target}" =~ ${CONTATE_PATTERN} ]]; then
+				if [ "${CONTATE_OUTPUT}" != "/dev/stdout" ]; then
+					if [ -n "${BASH_REMATCH[1]}" ]; then
+						dbg "Calculating output: "
+						dbg "BASH_REMATCH: ${BASH_REMATCH[1]}"
+						dbg "REMOVABLE_PATH: ${REMOVABLE_PATH}"
+						OUTPUT_SUBPATH="${BASH_REMATCH[1]#${REMOVABLE_PATH}}"
+					else
+						dbg "Calculating output: "
+						dbg "target: ${target}"
+						dbg "REMOVABLE_PATH: ${REMOVABLE_PATH}"
+						OUTPUT_SUBPATH="${target#${REMOVABLE_PATH}}"
+					fi
+					SPECIFIC_OUTPUT="${CONTATE_OUTPUT}/${OUTPUT_SUBPATH}"
+					dbg "Is a contate file! it's output is: ${SPECIFIC_OUTPUT}"
+					mkdir -p "$(dirname ${SPECIFIC_OUTPUT})"
 				fi
-				SPECIFIC_OUTPUT="${CONTATE_OUTPUT}/${OUTPUT_SUBPATH}"
-				dbg "Is a contate file! it's output is: ${SPECIFIC_OUTPUT}"
-				mkdir -p "$(dirname ${SPECIFIC_OUTPUT})"
-			fi
-			if ! $CONTATE_DRY; then 
-				contate_file "${target}" "${SPECIFIC_OUTPUT}" 
-				must $? "Contate file failed somewhere on ${target} to ${SPECIFIC_OUTPUT}"
+				if ! $CONTATE_DRY; then 
+					contate_file "${target}" "${SPECIFIC_OUTPUT}" 
+					must $? "Contate file failed somewhere on ${target} to ${SPECIFIC_OUTPUT}"
+				fi
 			fi
 		fi
-	fi
-done
+	done
+}
+recurse "${@}"
