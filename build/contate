@@ -269,7 +269,7 @@ function c_execute {
 		must $? "Couldn't rename $TMP_SCRIPT for C"
 		TMP_SCRIPT="$TMP_SCRIPT".c
 	fi
-	if export -p CONTATE_CONFIG; then
+	if declare -p CONTATE_CONFIG > /dev/null 2>&1 ; then
 		. $TMP_SCRIPT
 		dbg "Sourced"
 	else
