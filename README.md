@@ -66,3 +66,4 @@ Access in more languages is coming.
 * maybe thing about portability/porting entirely
 * usage
 * improve q and d and p
+* allow c to take any file and strike directories since it's not working
