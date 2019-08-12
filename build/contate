@@ -526,7 +526,7 @@ recurse() {
 }
 if [ -n "${CONTATE_CONFIG}" ]; then
 	dbg "In contate config"
-	export SPECIFIC_OUTPUT="/dev/null/"
+	export SPECIFIC_OUTPUT="/dev/null"
 	recurse "${CONTATE_CONFIG}"
 	unset SPECIFIC_OUTPUT
 fi
