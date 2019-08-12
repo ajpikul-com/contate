@@ -57,7 +57,11 @@ contate_file(){
 			if [[ "$line" =~ $CONTATE_END_REGEX ]]; then
 				dbg "END SCRIP on '$line' with rematch '${BASH_REMATCH[2]}'"
 				c_execute # TODO what do with output?
-				echo "${CoE}${BASH_REMATCH[2]}" >> ${OUTPUT}
+				if [ "${OUTPUT}" = "/dev/stdout" ]; then
+					echo "${CoE}${BASH_REMATCH[2]}"
+				else
+					echo "${CoE}${BASH_REMATCH[2]}" >> ${OUTPUT}
+				fi
 				rm "$TMP_SCRIPT"
 				unset TMP_SCRIPT
 			else
@@ -73,7 +77,11 @@ contate_file(){
 			# set filetype
 			TMP_SCRIPT="$(mktemp)"
 			echo "${line#${BASH_REMATCH[1]}}" >> "$TMP_SCRIPT"
-			echo -n "${CoS}${BASH_REMATCH[1]}" >>"$OUTPUT"
+			if [ "${OUTPUT}" = "/dev/stdout" ]; then
+				echo -n "${CoS}${BASH_REMATCH[1]}"
+			else
+				echo -n "${CoS}${BASH_REMATCH[1]}" >>"$OUTPUT"
+			fi
 			[[ "$line" =~ ^([[:space:]]*) ]]
 			INDENTATION="${BASH_REMATCH[1]}"
 			dbg "Captured indentation: '$INDENTATION'"
@@ -85,10 +93,18 @@ contate_file(){
 			must $? "${BASH_REMATCH[1]} failed to be eval'ed"
 			dbg "INLINE OUTPUT: $INLINE_OUTPUT"
 			if [ -n "$INLINE_OUTPUT" ]; then
-				echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}" >> "$OUTPUT"
+				if [ "${OUTPUT}" = "/dev/stdout" ]; then
+					echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}"
+				else
+					echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}" >> "$OUTPUT"
+				fi
 			fi
 		else
-			echo "${CoC}$line" >> "$OUTPUT"
+			if [ "${OUTPUT}" = "/dev/stdout" ]; then
+				echo "${CoC}$line"
+			else
+				echo "${CoC}$line" >> "$OUTPUT"
+			fi
 		fi
 	done < "$TARGET"
 	if [ -z "$TMP_SCRIPT" ]; then
