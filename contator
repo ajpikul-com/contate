@@ -74,6 +74,7 @@ contate_file(){
 			dbg "Captured indentation: '$INDENTATION'"
 		# Direct copy
 		elif [[ "$line" =~ $CONTATE_INLINE ]]; then
+			dbg "Whole inline line: ${BASH_RENATCH[0]}"
 			dbg "Inline replacement: '${BASH_REMATCH[1]}'"
 			INLINE_OUTPUT="$(eval "${BASH_REMATCH[1]}")"
 			must $? "${BASH_REMATCH[1]} failed to be eval'ed"
