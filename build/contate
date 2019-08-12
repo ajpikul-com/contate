@@ -368,8 +368,15 @@ contate_file(){
 	if [ -z "$TMP_SCRIPT" ]; then
 		dbg "WROTE SCRIPT"
 	else
-		err "Unexpected EOF in ${TARGET}"
-		exit 1
+		dbg "Reached EOF w/in script"
+		c_execute # TODO what do with output?
+		if [ "${OUTPUT}" = "/dev/stdout" ]; then
+			echo "${CoE}${BASH_REMATCH[2]}"
+		else
+			echo "${CoE}${BASH_REMATCH[2]}" >> ${OUTPUT}
+		fi
+		rm "$TMP_SCRIPT"
+		unset TMP_SCRIPT
 	fi
 }
 #!/bin/bash
