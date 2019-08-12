@@ -386,7 +386,7 @@ while getopts ":o:p:c:dqrh" opt; do
 	dbg "Getopts iteration"
 	case "$opt" in
 	c)
-		CONTATE_CONFIG="$OPT_ARG"
+		CONTATE_CONFIG="$OPTARG"
 		;;
 	d)
 		CONTATE_DRY=true
