@@ -454,20 +454,24 @@ validate_input() {
 		err "-c Must set a file or directory"
 		exit 1
 	fi
+	if [ -d "${CONTATE_CONFIG}" ]; then
+		CONTATE_CONFIG="${CONTATE_CONFIG}/*"
+	fi
 }
 validate_input
 
 # RECURSE THROUGH INPUTS
 recurse() {
+	dbg "Passed to recurse: ${@}"
 	for target; do
-		for target; do
-			if [[ -d "${target}" ]] && ! $CONTATE_RECURSE; then
-				err "${target} is a directory but didn't specify -r"
-				usage
-				exit 1
-			fi
-		done
-
+		if [[ -d "${target}" ]] && ! $CONTATE_RECURSE; then
+			err "${target} is a directory but didn't specify -r"
+			usage
+			exit 1
+		fi
+	done
+	for target; do
+		dbg "Recurse is looping on ${target}"
 		if [ "$D_MASTER" = "$$" ]; then
 			if [ -f "$target" ]; then
 				export REMOVABLE_PATH="$(dirname $(realpath $target))"/
@@ -478,13 +482,14 @@ recurse() {
 		fi
 		if [[ -d "${target}" && -x "${target}" && -r "${target}" ]]; then
 			dbg "TARGET DIRECTORY: ${target}"
-			recurse $(realpath ${target})/*
+			dbg recurse target: ${target}/*
+			contate $(realpath ${target})/*
 			must $? "Contate failed on one of $(realpath ${target})/*"
 		elif [[ -f "${target}" && -r "${target}" ]]; then
 			target="$(realpath $target)"
 			dbg "TARGET FILE: ${target}"
 			if [[ "${target}" =~ ${CONTATE_PATTERN} ]]; then
-				if [ "${CONTATE_OUTPUT}" != "/dev/stdout" ]; then
+				if [ "${CONTATE_OUTPUT}" != "/dev/stdout" ] && [ "$SPECIFIC_OUTPUT" != "/dev/null" ]; then
 					if [ -n "${BASH_REMATCH[1]}" ]; then
 						dbg "Calculating output: "
 						dbg "BASH_REMATCH: ${BASH_REMATCH[1]}"
@@ -499,6 +504,8 @@ recurse() {
 					SPECIFIC_OUTPUT="${CONTATE_OUTPUT}/${OUTPUT_SUBPATH}"
 					dbg "Is a contate file! it's output is: ${SPECIFIC_OUTPUT}"
 					mkdir -p "$(dirname ${SPECIFIC_OUTPUT})"
+				elif [ -z "${SPECIFIC_OUTPUT}" ]; then
+					SPECIFIC_OUTPUT="${CONTATE_OUTPUT}"
 				fi
 				if ! $CONTATE_DRY; then 
 					contate_file "${target}" "${SPECIFIC_OUTPUT}" 
@@ -508,4 +515,11 @@ recurse() {
 		fi
 	done
 }
+if [ -n "${CONTATE_CONFIG}" ]; then
+	export SPECIFIC_OUTPUT="/dev/null/"
+	recurse "${CONTATE_COFIG}"
+	unset SPECIFIC_OUTPUT
+fi
+
+dbg "recurse targets: ${@}"
 recurse "${@}"
