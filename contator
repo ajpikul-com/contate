@@ -11,7 +11,12 @@ function c_execute {
 		must $? "Couldn't rename $TMP_SCRIPT for C"
 		TMP_SCRIPT="$TMP_SCRIPT".c
 	fi
-	SCRIPT_OUTPUT="$($TMP_SCRIPT)"
+	if export -p CONTATE_CONFIG; then
+		. $TMP_SCRIPT
+		dbg "Sourced"
+	else
+		SCRIPT_OUTPUT="$($TMP_SCRIPT)"
+	fi
 	must $? "Script output failed"
 	TOTAL_LINES=$(echo "$SCRIPT_OUTPUT"| wc -l)
 	i=0
