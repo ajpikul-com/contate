@@ -171,6 +171,7 @@ if [ -n "${CONTATE_CONFIG}" ]; then
 	export SPECIFIC_OUTPUT="/dev/null"
 	recurse "${CONTATE_CONFIG}"
 	unset SPECIFIC_OUTPUT
+	unset CONTATE_CONFIG
 fi
 
 dbg "recurse targets: ${@}"

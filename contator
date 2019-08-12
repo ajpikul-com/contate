@@ -12,8 +12,8 @@ function c_execute {
 		TMP_SCRIPT="$TMP_SCRIPT".c
 	fi
 	if declare -p CONTATE_CONFIG > /dev/null 2>&1 ; then
+		dbg "Sourcing"
 		. $TMP_SCRIPT
-		dbg "Sourced"
 	else
 		SCRIPT_OUTPUT="$($TMP_SCRIPT)"
 	fi
