@@ -66,6 +66,7 @@ dbg "All arguments passed:: ${*}"
 shift "$(( OPTIND - 1 ))"
 
 dbg "CONTATE_DRY=${CONTATE_DRY}"
+dbg "COTATE_CONFIG=${CONTATE_CONFIG}"
 dbg "CONTATE_OUTPUT=${CONTATE_OUTPUT}"
 dbg "CONTATE_RECURSE=${CONTATE_RECURSE}"
 dbg "CONTATE_DEBUG=${CONTATE_DEBUG}"
@@ -104,6 +105,8 @@ validate_input() {
 	fi
 	if [ -d "${CONTATE_CONFIG}" ]; then
 		CONTATE_CONFIG="${CONTATE_CONFIG}/*"
+		dbg "New CONTATE_CONFIG after directory expansion:"
+		dbg "${CONTATE_CONFIG}"
 	fi
 }
 validate_input
@@ -164,6 +167,7 @@ recurse() {
 	done
 }
 if [ -n "${CONTATE_CONFIG}" ]; then
+	dbg "In contate config"
 	export SPECIFIC_OUTPUT="/dev/null/"
 	recurse "${CONTATE_COFIG}"
 	unset SPECIFIC_OUTPUT
