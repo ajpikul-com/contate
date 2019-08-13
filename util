@@ -65,4 +65,4 @@ usage(){
 }
 dbg "util defined"
 
-export -f dbg should must err
+export -f dbg should must err contate
