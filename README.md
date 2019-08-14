@@ -68,3 +68,4 @@ Access in more languages is coming.
 * improve q and d and p
 * allow c to take any file and strike directories since it's not working
 * strip .contate from dir suffix?
+* echo on a empty inline produced no line wtf
