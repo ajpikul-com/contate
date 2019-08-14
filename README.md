@@ -69,3 +69,4 @@ Access in more languages is coming.
 * allow c to take any file and strike directories since it's not working
 * strip .contate from dir suffix?
 * echo on a empty inline produced no line wtf
+* multiple inlines, inline on an ending
