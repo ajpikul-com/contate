@@ -65,7 +65,7 @@ usage(){
 }
 dbg "util defined"
 
-export -f dbg should must err
+export -f dbg should must err contate
 #!/bin/bash
 	
 export D_MASTER D_FILE D_HASH D_CACHE
