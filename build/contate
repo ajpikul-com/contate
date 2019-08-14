@@ -282,9 +282,17 @@ function c_execute {
 		dbg "Line Number:$i / $TOTAL_LINES"
 		i=$(( i + 1 ))
 		if [ $i -gt 1 ]; then
+			if [ "${OUTPUT}" = "/dev/stdout" ]; then
+			echo -n "${CoP}${INDENTATION}${scriptoutput2}"
+			else
 			echo -n "${CoP}${INDENTATION}${scriptoutput2}" >> "$OUTPUT"
+			fi
 		else
-			echo -n "${CoP}${scriptoutput2}" >> "$OUTPUT"
+			if [ "${OUTPUT}" = "/dev/stdout" ]; then
+				echo -n "${CoP}${scriptoutput2}"
+			else
+				echo -n "${CoP}${scriptoutput2}" >> "$OUTPUT"
+			fi
 		fi
 		if [ $i -lt $TOTAL_LINES ]; then
 			echo "" >> "$OUTPUT"
