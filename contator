@@ -100,13 +100,14 @@ contate_file(){
 			INLINE_OUTPUT="$(eval "${BASH_REMATCH[1]}")"
 			must $? "${BASH_REMATCH[1]} failed to be eval'ed"
 			dbg "INLINE OUTPUT: $INLINE_OUTPUT"
-			# if [ -n "$INLINE_OUTPUT" ]; then
+			INLINE_OUTPUT="${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}"
+			if [ -n "$INLINE_OUTPUT" ]; then
 				if [ "${OUTPUT}" = "/dev/stdout" ]; then
-					echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}"
+					echo "${INLINE_OUTPUT}"
 				else
-					echo "${CoI}${line/\#\!$\(${BASH_REMATCH[1]})\!#/$INLINE_OUTPUT}" >> "$OUTPUT"
+					echo "${INLINE_OUTPUT}" >> "$OUTPUT"
 				fi
-			# fi
+			fi
 		else
 			if [ "${OUTPUT}" = "/dev/stdout" ]; then
 				echo "${CoC}$line"
