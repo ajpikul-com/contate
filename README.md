@@ -2,6 +2,8 @@
 
 **Contate** parses files for arbitrarily placed shebang!s (`#!`) and substitutes the script output into the document.
 
+Remember to add the `pre-push` script hook to .git/hooks if you're going to develop
+
 ## Example 
 
 It looks for
