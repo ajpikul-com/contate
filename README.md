@@ -10,7 +10,7 @@ It looks for
 ...Static content...
 #!/bin/bash
 echo "Some script output"
-#!
+!#
 ...More static content...
 ```
 And gives you:
